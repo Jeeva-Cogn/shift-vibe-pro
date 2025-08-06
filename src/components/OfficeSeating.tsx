@@ -4,8 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Building2, User, MapPin, Calendar } from 'lucide-react';
+import { getChennaiTimeString } from '@/lib/utils';
 
 const OfficeSeating = () => {
+  const [chennaiTimeNow, setChennaiTimeNow] = React.useState(getChennaiTimeString());
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setChennaiTimeNow(getChennaiTimeString());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
   const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
   
   const officeSeats = Array.from({ length: 8 }, (_, i) => ({
@@ -48,6 +56,10 @@ const OfficeSeating = () => {
 
   return (
     <div className="space-y-6">
+      {/* Chennai Time Banner */}
+      <div className="w-full text-center py-2 bg-blue-50 text-blue-700 font-semibold rounded">
+        Current Chennai Time: {chennaiTimeNow}
+      </div>
       {/* Office Layout */}
       <Card>
         <CardHeader>
