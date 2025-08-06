@@ -132,18 +132,69 @@ const ShiftScheduler = () => {
       const header1 = ['Date/Month/Year', '', '', ...Array.from({length: daysInMonth}, (_, i) => formatDate(i+1, monthNum, yearNum))];
       const header2 = ['', 'CTS', 'ESHC', 'Name', ...Array.from({length: daysInMonth}, (_, i) => getWeekday(yearNum, monthNum, i+1))];
 
-      // Demo: round-robin shift assignment (replace with your real logic as needed)
-      const shifts = ['S1', 'S2', 'S3', 'S4', 'OFF', 'Leave'];
-      // Build employee rows
-      const empRows = employees.map((emp, empIdx) => {
-        const row = ['', emp.cts, emp.eshc, emp.name];
-        for (let day = 1; day <= daysInMonth; day++) {
-          // For demo, assign shifts in a pattern
-          let shift = shifts[(empIdx + day) % shifts.length];
-          row.push(shift);
+      // --- Staged assignment: leads first, then associates ---
+      // Define shift leads and team leads
+      const shiftLeads = ['Jeyakaran', 'Karthikeyan', 'Manoj', 'Panner', 'SaiKumar'];
+      const teamLeads = ['Dinesh', 'Mano'];
+      // For each day, assign shifts according to requirements
+      const empRows = employees.map(emp => ['', emp.cts, emp.eshc, emp.name, ...Array(daysInMonth).fill('')]);
+      // Helper to get employee index by name
+      const empIdxByName = name => employees.findIndex(e => e.name === name);
+      // For each day, assign shifts
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(yearNum, monthNum - 1, day);
+        const weekday = date.getDay();
+        let req;
+        if (weekday === 0) req = shiftRequirements['Sunday'];
+        else if (weekday === 6) req = shiftRequirements['Saturday'];
+        else req = shiftRequirements['Monday-Friday'];
+        // Track assigned
+        const assigned = { S1: [], S2: [], S3: [] };
+        // 1. Place shift leads first
+        let availableLeads = shiftLeads.slice();
+        // Shuffle for fairness
+        availableLeads = availableLeads.sort(() => Math.random() - 0.5);
+        // Place one lead per shift
+        ['S1','S2','S3'].forEach((shift, i) => {
+          if (req[shift] > 0 && availableLeads.length > 0) {
+            const lead = availableLeads.shift();
+            const idx = empIdxByName(lead);
+            if (idx !== -1) {
+              empRows[idx][3 + day] = shift;
+              assigned[shift].push(idx);
+            }
+          }
+        });
+        // 2. Place team leads (Dinesh, Mano) in S2 only, weekends off
+        teamLeads.forEach(lead => {
+          const idx = empIdxByName(lead);
+          if (idx !== -1) {
+            if (weekday !== 0 && weekday !== 6 && req['S2'] > assigned['S2'].length) {
+              empRows[idx][3 + day] = 'S2';
+              assigned['S2'].push(idx);
+            } else {
+              empRows[idx][3 + day] = 'OFF';
+            }
+          }
+        });
+        // 3. Fill remaining slots with associates
+        ['S1','S2','S3'].forEach(shift => {
+          let needed = req[shift] - assigned[shift].length;
+          if (needed > 0) {
+            for (let i = 0; i < employees.length && needed > 0; i++) {
+              if (empRows[i][3 + day] === '') {
+                empRows[i][3 + day] = shift;
+                assigned[shift].push(i);
+                needed--;
+              }
+            }
+          }
+        });
+        // 4. All others OFF
+        for (let i = 0; i < employees.length; i++) {
+          if (empRows[i][3 + day] === '') empRows[i][3 + day] = 'OFF';
         }
-        return row;
-      });
+      }
 
       // Summary rows for S1, S2, S3 (count per day)
       function countShift(shiftCode, dayIdx) {
@@ -160,9 +211,39 @@ const ShiftScheduler = () => {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Shift Schedule');
 
+
       // Add legend and data
       worksheet.addRows(legend);
       worksheet.addRows(data);
+
+      // Color coding for shift cells (S1/S2/S3/S4 = green, OFF = grey, Leave = light grey)
+      // Data starts after legend (legend.length rows), header1+header2 (2 rows), then empRows
+      const startRow = legend.length + 3; // 1-based index for first employee row
+      const empCount = employees.length;
+      const daysInMonth = data[0].length - 4; // number of day columns
+      for (let i = 0; i < empCount; i++) {
+        const rowIdx = startRow + i;
+        for (let d = 0; d < daysInMonth; d++) {
+          const colIdx = 5 + d; // 1-based, skip first 4 columns
+          const cell = worksheet.getRow(rowIdx).getCell(colIdx);
+          switch (cell.value) {
+            case 'S1':
+            case 'S2':
+            case 'S3':
+            case 'S4':
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C6F6D5' } }; // green
+              break;
+            case 'OFF':
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F3F4F6' } }; // grey
+              break;
+            case 'Leave':
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E5E7EB' } }; // light grey
+              break;
+            default:
+              break;
+          }
+        }
+      }
 
       // Set column widths
       worksheet.columns = [
