@@ -2,6 +2,7 @@
 // Node.js API endpoint for shift scheduling using javascript-lp-solver
 
 const solver = require('javascript-lp-solver');
+const { z } = require('zod');
 
 // /api/schedule.js
 module.exports = async (req, res) => {
@@ -10,15 +11,30 @@ module.exports = async (req, res) => {
     return;
   }
   try {
-    const { employees, daysInMonth, yearNum, monthNum, shiftRequirements, allShifts, shiftLeads, teamLeads } = req.body;
+    const schema = z.object({
+      employees: z.array(z.object({ name: z.string() })),
+      daysInMonth: z.number().min(28).max(31),
+      yearNum: z.number().min(2020),
+      monthNum: z.number().min(1).max(12),
+      shiftRequirements: z.object({
+        'Monday-Friday': z.record(z.string(), z.number()),
+        'Saturday': z.record(z.string(), z.number()),
+        'Sunday': z.record(z.string(), z.number()),
+      }),
+      allShifts: z.array(z.string()),
+      shiftLeads: z.array(z.string()),
+      teamLeads: z.array(z.string()),
+    });
 
-    if (!employees || !daysInMonth || !yearNum || !monthNum || !shiftRequirements || !allShifts || !shiftLeads || !teamLeads) {
-      res.status(400).json({ error: 'Missing required parameters' });
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ error: 'Invalid input parameters', details: result.error.issues });
       return;
     }
 
-    const daysInMonthNum = Number(daysInMonth);
-    const yearNumNum = Number(yearNum);
+    const { employees, daysInMonth, yearNum, monthNum, shiftRequirements, allShifts, shiftLeads, teamLeads } = result.data;
+    const daysInMonthNum = daysInMonth;
+    const yearNumNum = yearNum;
     const monthNumNum = Number(monthNum);
 
     // --- Model building logic ---
@@ -41,7 +57,7 @@ module.exports = async (req, res) => {
     // --- Strict week off constraints ---
     employees.forEach(emp => {
       for (let d = 1; d <= daysInMonth; d++) {
-        const date = new Date(yearNum, monthNum - 1, d);
+        const date = new Date(yearNumNum, monthNumNum - 1, d);
         const weekday = date.getDay(); // 0 (Sunday) to 6 (Saturday)
         if (weekday !== 0 && weekday !== 6) {
           model.constraints[`${emp.name}_noWeekdayOff_${d}`] = { max: 0 };
@@ -55,7 +71,7 @@ module.exports = async (req, res) => {
       let lastOff = 0;
       let workStreak = 0;
       for (let d = 1; d <= daysInMonth; d++) {
-        const date = new Date(yearNum, monthNum - 1, d);
+        const date = new Date(yearNumNum, monthNumNum - 1, d);
         const weekday = date.getDay(); // 0 (Sunday) to 6 (Saturday)
         if (weekday === 6 || weekday === 0) {
           if (d - lastOff > 6) {
@@ -79,8 +95,8 @@ module.exports = async (req, res) => {
     });
     employees.forEach(emp => {
       for (let d = 2; d <= daysInMonth; d++) {
-        const date1 = new Date(yearNum, monthNum - 1, d - 1);
-        const date2 = new Date(yearNum, monthNum - 1, d);
+        const date1 = new Date(yearNumNum, monthNumNum - 1, d - 1);
+        const date2 = new Date(yearNumNum, monthNumNum - 1, d);
         const wd1 = date1.getDay();
         const wd2 = date2.getDay();  // 0 (Sunday) to 6 (Saturday)
         if (!((wd1 === 6 || wd1 === 0) && (wd2 === 6 || wd2 === 0))) {
@@ -108,7 +124,7 @@ module.exports = async (req, res) => {
     });
     for (let d = 1; d <= daysInMonth; d++) {
 
-      const date = new Date(yearNum, monthNum - 1, d);
+      const date = new Date(yearNumNum, monthNumNum - 1, d);
       const weekday = date.getDay();  // 0 (Sunday) to 6 (Saturday)
 
       let req;
@@ -133,7 +149,7 @@ module.exports = async (req, res) => {
       });
     }
     for (let d = 1; d <= daysInMonth; d++) {
-      const date = new Date(yearNum, monthNum - 1, d);
+      const date = new Date(yearNumNum, monthNumNum - 1, d);
       const weekday = date.getDay();
       teamLeads.forEach(lead => {
         allShifts.forEach(shift => {
