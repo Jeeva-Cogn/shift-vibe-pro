@@ -128,33 +128,19 @@ const ShiftScheduler = () => {
       const monthNum = parseInt(selectedMonth.split('-')[1], 10);
       const daysInMonth = getDaysInMonth(yearNum, monthNum);
 
-      // Header rows
-      const header1 = ['Date/Month/Year', '', '', ...Array.from({length: daysInMonth}, (_, i) => formatDate(i+1, monthNum, yearNum))];
-      const header2 = ['', 'CTS', 'ESHC', 'Name', ...Array.from({length: daysInMonth}, (_, i) => getWeekday(yearNum, monthNum, i+1))];
+      // Header rows (match sample: 3 empty, then CTS, ESHC, Name, then days)
+      const header = [ '', '', '', 'CTS', 'ESHC', 'Name', ...Array.from({length: daysInMonth}, (_, i) => formatDate(i+1, monthNum, yearNum)) ];
+      const subHeader = [ '', '', '', '', '', '', ...Array.from({length: daysInMonth}, (_, i) => getWeekday(yearNum, monthNum, i+1)) ];
 
-      // --- Full rule-compliant scheduler ---
-      // Define shift leads and team leads
+      // --- Strict rule-based scheduler, no WFO/WFH columns ---
       const shiftLeads = ['Jeyakaran', 'Karthikeyan', 'Manoj', 'Panner', 'SaiKumar'];
       const teamLeads = ['Dinesh', 'Mano'];
-      const associates = employees.filter(e => !shiftLeads.includes(e.name) && !teamLeads.includes(e.name));
-      // Helper to get employee index by name
       const empIdxByName = name => employees.findIndex(e => e.name === name);
-      // Track WFO/WFH pattern for each employee (3 WFO, 2 WFH, repeat)
-      const wfoPattern = {};
-      employees.forEach(emp => {
-        wfoPattern[emp.name] = [];
-        let pattern = [];
-        for (let i = 0; i < daysInMonth; i++) {
-          pattern.push(i % 5 < 3 ? 'WFO' : 'WFH');
-        }
-        wfoPattern[emp.name] = pattern;
-      });
-      // Track week off assignment: after 4-6 working days, only on weekends
+      // Week off logic: assign OFF on weekends after 4-6 working days, allow consecutive OFFs only on weekends
       const weekOffs = {};
       employees.forEach(emp => {
         weekOffs[emp.name] = Array(daysInMonth).fill(false);
       });
-      // Assign week offs on weekends, try to balance Sat/Sun
       for (let i = 0; i < employees.length; i++) {
         let emp = employees[i];
         let lastOff = -3;
@@ -167,9 +153,9 @@ const ShiftScheduler = () => {
           }
         }
       }
-      // Prepare empRows: ['', cts, eshc, name, ...days]
-      const empRows = employees.map(emp => ['', emp.cts, emp.eshc, emp.name, ...Array(daysInMonth).fill('')]);
-      // For each day, assign shifts
+      // Prepare empRows: ['', '', '', cts, eshc, name, ...days]
+      const empRows = employees.map(emp => ['', '', '', emp.cts, emp.eshc, emp.name, ...Array(daysInMonth).fill('')]);
+      // For each day, assign shifts strictly by rules
       for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(yearNum, monthNum - 1, day);
         const weekday = date.getDay();
@@ -178,17 +164,16 @@ const ShiftScheduler = () => {
         else if (weekday === 6) req = shiftRequirements['Saturday'];
         else req = shiftRequirements['Monday-Friday'];
         // Track assigned
-        const assigned = { S1: [], S2: [], S3: [] };
+        const assigned = { S1: [], S2: [], S3: [], S4: [] };
         // 1. Place shift leads first (one per shift, if not week off)
         let availableLeads = shiftLeads.filter(lead => !weekOffs[lead][day-1]);
-        // Rotate leads for fairness
         availableLeads = availableLeads.slice((day-1)%availableLeads.length).concat(availableLeads.slice(0,(day-1)%availableLeads.length));
         ['S1','S2','S3'].forEach((shift, i) => {
           if (req[shift] > 0 && availableLeads.length > 0) {
             const lead = availableLeads.shift();
             const idx = empIdxByName(lead);
             if (idx !== -1) {
-              empRows[idx][3 + day] = shift;
+              empRows[idx][6 + day] = shift;
               assigned[shift].push(idx);
             }
           }
@@ -198,10 +183,10 @@ const ShiftScheduler = () => {
           const idx = empIdxByName(lead);
           if (idx !== -1) {
             if (weekday !== 0 && weekday !== 6 && req['S2'] > assigned['S2'].length && !weekOffs[lead][day-1]) {
-              empRows[idx][3 + day] = 'S2';
+              empRows[idx][6 + day] = 'S2';
               assigned['S2'].push(idx);
             } else {
-              empRows[idx][3 + day] = 'OFF';
+              empRows[idx][6 + day] = 'OFF';
             }
           }
         });
@@ -210,8 +195,8 @@ const ShiftScheduler = () => {
           let needed = req[shift] - assigned[shift].length;
           if (needed > 0) {
             for (let i = 0; i < employees.length && needed > 0; i++) {
-              if (empRows[i][3 + day] === '' && !weekOffs[employees[i].name][day-1]) {
-                empRows[i][3 + day] = shift;
+              if (empRows[i][6 + day] === '' && !weekOffs[employees[i].name][day-1]) {
+                empRows[i][6 + day] = shift;
                 assigned[shift].push(i);
                 needed--;
               }
@@ -220,80 +205,24 @@ const ShiftScheduler = () => {
         });
         // 4. All others OFF or week off
         for (let i = 0; i < employees.length; i++) {
-          if (empRows[i][3 + day] === '') {
-            empRows[i][3 + day] = weekOffs[employees[i].name][day-1] ? 'OFF' : 'OFF';
+          if (empRows[i][6 + day] === '') {
+            empRows[i][6 + day] = weekOffs[employees[i].name][day-1] ? 'OFF' : 'OFF';
           }
         }
       }
-      // --- WFO/WFH seat assignment ---
-      // For each day, assign max 8 WFO, rest WFH, at least 2 per shift in office
-      for (let day = 1; day <= daysInMonth; day++) {
-        // Collect all working employees for the day
-        const working = [];
-        for (let i = 0; i < employees.length; i++) {
-          const shift = empRows[i][3 + day];
-          if (shift !== 'OFF' && shift !== 'Leave') working.push(i);
-        }
-        // Assign WFO/WFH by pattern, but max 8 WFO
-        let wfoCount = 0;
-        // First, try to ensure at least 2 per shift in WFO
-        const wfoAssigned = new Set();
-        ['S1','S2','S3'].forEach(shift => {
-          let count = 0;
-          for (let idx of working) {
-            if (empRows[idx][3 + day] === shift && wfoPattern[employees[idx].name][day-1] === 'WFO' && wfoCount < 8 && count < 2) {
-              empRows[idx][4 + daysInMonth + day] = 'WFO';
-              wfoAssigned.add(idx);
-              wfoCount++;
-              count++;
-            }
-          }
-        });
-        // Then, assign remaining WFO by pattern up to 8
-        for (let idx of working) {
-          if (!wfoAssigned.has(idx) && wfoPattern[employees[idx].name][day-1] === 'WFO' && wfoCount < 8) {
-            empRows[idx][4 + daysInMonth + day] = 'WFO';
-            wfoAssigned.add(idx);
-            wfoCount++;
-          }
-        }
-        // All others WFH
-        for (let idx of working) {
-          if (!wfoAssigned.has(idx)) {
-            empRows[idx][4 + daysInMonth + day] = 'WFH';
-          }
-        }
-        // For OFF/Leave, leave blank
-        for (let i = 0; i < employees.length; i++) {
-          if (empRows[i][3 + day] === 'OFF' || empRows[i][3 + day] === 'Leave') {
-            empRows[i][4 + daysInMonth + day] = '';
-          }
-        }
-      }
-      // --- END full rule-compliant scheduler ---
+      // --- END strict rule-based scheduler ---
 
       // Summary rows for S1, S2, S3 (count per day)
       function countShift(shiftCode, dayIdx) {
-        return empRows.reduce((acc, row) => row[4+dayIdx] === shiftCode ? acc+1 : acc, 0);
+        return empRows.reduce((acc, row) => row[6+dayIdx] === shiftCode ? acc+1 : acc, 0);
       }
       const summaryRows = ['S1','S2','S3'].map(shiftCode => {
-        const row = [shiftCode, ...Array(3).fill(''), ...Array.from({length: daysInMonth}, (_, i) => countShift(shiftCode, i))];
+        const row = ['', '', '', shiftCode, '', '', ...Array.from({length: daysInMonth}, (_, i) => countShift(shiftCode, i+1))];
         return row;
       });
 
-      // Add WFO/WFH columns to header
-      const header1Full = [...header1, ...Array.from({length: daysInMonth}, (_, i) => formatDate(i+1, monthNum, yearNum) + ' Type')];
-      const header2Full = [...header2, ...Array.from({length: daysInMonth}, (_, i) => getWeekday(yearNum, monthNum, i+1))];
-      // Add WFO/WFH to empRows
-      const empRowsFull = empRows.map(row => {
-        const typeCols = [];
-        for (let i = 0; i < daysInMonth; i++) {
-          typeCols.push(row[4 + daysInMonth + i + 1] || '');
-        }
-        return [...row.slice(0, 4 + daysInMonth + 1), ...typeCols];
-      });
       // Final data for export
-      const data = [header1Full, header2Full, ...empRowsFull, ...summaryRows];
+      const data = [header, subHeader, ...empRows, ...summaryRows];
 
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Shift Schedule');
@@ -304,15 +233,14 @@ const ShiftScheduler = () => {
       worksheet.addRows(data);
 
       // Color coding for shift cells (S1/S2/S3/S4 = green, OFF = grey, Leave = light grey)
-      // Data starts after legend (legend.length rows), header1+header2 (2 rows), then empRows
+      // Data starts after legend (legend.length rows), header+subHeader (2 rows), then empRows
       const startRow = legend.length + 3; // 1-based index for first employee row
       const empCount = employees.length;
-      const totalCols = 4 + daysInMonth * 2; // 4 info cols, daysInMonth shift cols, daysInMonth type cols
       for (let i = 0; i < empCount; i++) {
         const rowIdx = startRow + i;
         // Color shift cells (S1/S2/S3/S4, OFF, Leave)
         for (let d = 0; d < daysInMonth; d++) {
-          const colIdx = 5 + d; // 1-based, skip first 4 columns
+          const colIdx = 7 + d; // 1-based, skip first 6 columns
           const cell = worksheet.getRow(rowIdx).getCell(colIdx);
           switch (cell.value) {
             case 'S1':
@@ -324,28 +252,6 @@ const ShiftScheduler = () => {
             case 'OFF':
               cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F3F4F6' } }; // grey
               break;
-            case 'Leave':
-              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E5E7EB' } }; // light grey
-              break;
-            default:
-              break;
-          }
-        }
-        // Color WFO/WFH/Type columns (immediately after shift columns)
-        for (let d = 0; d < daysInMonth; d++) {
-          const colIdx = 5 + daysInMonth + d; // 1-based index for first type column
-          const cell = worksheet.getRow(rowIdx).getCell(colIdx);
-          switch (cell.value) {
-            case 'WFO':
-              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C6F6D5' } }; // green
-              break;
-            case 'WFH':
-              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'A7F3D0' } }; // cyan
-              break;
-            case 'OFF':
-              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F3F4F6' } }; // grey
-              break;
-            case 'LEAVE':
             case 'Leave':
               cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E5E7EB' } }; // light grey
               break;
