@@ -41,20 +41,18 @@ const ShiftScheduler = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ year: yearNum, month: monthNum })
       });
-      if (!res.ok) throw new Error('Failed to fetch schedule');
-      const data = await res.json();
-      // Validate data format
-      if (!data || typeof data !== 'object' || !data.results || typeof data.results !== 'object') {
-        throw new Error('Invalid schedule data format');
+      if (!res.ok) {
+        toast.error('Failed to fetch schedule');
+        return null;
       }
-      // Check if at least one valid assignment exists
-      const hasValid = Object.keys(data.results).some(
-        key => data.results[key] === 1 && key.split('_').length === 3
-      );
-      if (!hasValid) throw new Error('No valid schedule assignments found');
+      const data = await res.json();
+      if (!data || typeof data !== 'object' || !data.results || typeof data.results !== 'object') {
+        toast.error('Invalid schedule data format');
+        return null;
+      }
       return data.results;
     } catch (error: any) {
-      toast.error('Failed to fetch valid schedule data', { description: error.message || undefined });
+      toast.error('Failed to fetch schedule', { description: error.message || undefined });
       return null;
     }
   };
@@ -71,29 +69,29 @@ const ShiftScheduler = () => {
       const month = selectedMonth.split('-')[1];
       const scheduleData = await fetchScheduleData(year, month);
 
-      // Validate data before exporting
-      if (!scheduleData) throw new Error('No valid schedule data to export');
-
-      // Initialize ExcelJS workbook
+      // Always export, even if no data, but show a warning
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Schedule');
       worksheet.addRow(['Employee', 'Day', 'Shift']);
 
       let addedRows = 0;
-      for (const key in scheduleData) {
-        if (scheduleData[key] === 1) {
-          const parts = key.split('_');
-          if (parts.length === 3) {
-            const employeeName = parts[0];
-            const day = parts[1];
-            const shift = parts[2];
-            worksheet.addRow([employeeName, day, shift]);
-            addedRows++;
+      if (scheduleData) {
+        for (const key in scheduleData) {
+          if (scheduleData[key] === 1) {
+            const parts = key.split('_');
+            if (parts.length === 3) {
+              const employeeName = parts[0];
+              const day = parts[1];
+              const shift = parts[2];
+              worksheet.addRow([employeeName, day, shift]);
+              addedRows++;
+            }
           }
         }
       }
       if (addedRows === 0) {
-        throw new Error('No valid schedule assignments to export');
+        worksheet.addRow(['No schedule data available']);
+        toast.warning('No valid schedule assignments to export');
       }
 
       const buffer = await workbook.xlsx.writeBuffer();
