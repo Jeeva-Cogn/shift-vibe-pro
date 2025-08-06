@@ -3,6 +3,7 @@
 
 const solver = require('javascript-lp-solver');
 
+// /api/schedule.js
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -10,7 +11,17 @@ module.exports = async (req, res) => {
   }
   try {
     const { employees, daysInMonth, yearNum, monthNum, shiftRequirements, allShifts, shiftLeads, teamLeads } = req.body;
-    // --- Model building logic (copy from frontend, minus browser-only code) ---
+
+    if (!employees || !daysInMonth || !yearNum || !monthNum || !shiftRequirements || !allShifts || !shiftLeads || !teamLeads) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    const daysInMonthNum = Number(daysInMonth);
+    const yearNumNum = Number(yearNum);
+    const monthNumNum = Number(monthNum);
+
+    // --- Model building logic ---
     const model = {
       optimize: 'fairness',
       opType: 'min',
@@ -20,7 +31,7 @@ module.exports = async (req, res) => {
     };
     employees.forEach(emp => {
       for (let d = 1; d <= daysInMonth; d++) {
-        allShifts.forEach(shift => {
+        allShifts.forEach((shift) => {
           const key = `${emp.name}_${d}_${shift}`;
           model.variables[key] = { fairness: 1 + Math.random() * 0.1 };
           model.ints[key] = 1;
@@ -31,10 +42,10 @@ module.exports = async (req, res) => {
     employees.forEach(emp => {
       for (let d = 1; d <= daysInMonth; d++) {
         const date = new Date(yearNum, monthNum - 1, d);
-        const weekday = date.getDay();
+        const weekday = date.getDay(); // 0 (Sunday) to 6 (Saturday)
         if (weekday !== 0 && weekday !== 6) {
           model.constraints[`${emp.name}_noWeekdayOff_${d}`] = { max: 0 };
-          allShifts.forEach(shift => {
+          allShifts.forEach((shift) => {
             model.variables[`${emp.name}_${d}_${shift}`][`${emp.name}_noWeekdayOff_${d}`] = 1;
           });
         }
@@ -45,11 +56,11 @@ module.exports = async (req, res) => {
       let workStreak = 0;
       for (let d = 1; d <= daysInMonth; d++) {
         const date = new Date(yearNum, monthNum - 1, d);
-        const weekday = date.getDay();
+        const weekday = date.getDay(); // 0 (Sunday) to 6 (Saturday)
         if (weekday === 6 || weekday === 0) {
           if (d - lastOff > 6) {
             model.constraints[`${emp.name}_mustOff_${d}`] = { min: 1 };
-            allShifts.forEach(shift => {
+            allShifts.forEach((shift) => {
               model.variables[`${emp.name}_${d}_${shift}`][`${emp.name}_mustOff_${d}`] = 0;
             });
           }
@@ -59,7 +70,7 @@ module.exports = async (req, res) => {
           workStreak++;
           if (workStreak > 6) {
             model.constraints[`${emp.name}_noLongWork_${d}`] = { max: 0 };
-            allShifts.forEach(shift => {
+            allShifts.forEach((shift) => {
               model.variables[`${emp.name}_${d}_${shift}`][`${emp.name}_noLongWork_${d}`] = 1;
             });
           }
@@ -71,18 +82,18 @@ module.exports = async (req, res) => {
         const date1 = new Date(yearNum, monthNum - 1, d - 1);
         const date2 = new Date(yearNum, monthNum - 1, d);
         const wd1 = date1.getDay();
-        const wd2 = date2.getDay();
+        const wd2 = date2.getDay();  // 0 (Sunday) to 6 (Saturday)
         if (!((wd1 === 6 || wd1 === 0) && (wd2 === 6 || wd2 === 0))) {
-          const key1 = allShifts.map(shift => `${emp.name}_${d-1}_${shift}`);
-          const key2 = allShifts.map(shift => `${emp.name}_${d}_${shift}`);
+          const key1 = allShifts.map((shift) => `${emp.name}_${d - 1}_${shift}`);
+          const key2 = allShifts.map((shift) => `${emp.name}_${d}_${shift}`);
           model.constraints[`${emp.name}_noConsecOff_${d}`] = { min: 1 };
-          key1.forEach(k => {
+          key1.forEach((k) => {
             model.variables[k][`${emp.name}_noConsecOff_${d}`] = 1;
           });
-          key2.forEach(k => {
+          key2.forEach((k) => {
             model.variables[k][`${emp.name}_noConsecOff_${d}`] = 1;
           });
-        }
+        } 
       }
     });
     // --- END strict week off constraints ---
@@ -96,20 +107,22 @@ module.exports = async (req, res) => {
       }
     });
     for (let d = 1; d <= daysInMonth; d++) {
+
       const date = new Date(yearNum, monthNum - 1, d);
-      const weekday = date.getDay();
+      const weekday = date.getDay();  // 0 (Sunday) to 6 (Saturday)
+
       let req;
       if (weekday === 0) req = shiftRequirements['Sunday'];
       else if (weekday === 6) req = shiftRequirements['Saturday'];
       else req = shiftRequirements['Monday-Friday'];
-      allShifts.forEach(shift => {
+      allShifts.forEach((shift) => {
         const keys = employees.map(emp => `${emp.name}_${d}_${shift}`);
         model.constraints[`day${d}_${shift}_req`] = { equal: req[shift] };
-        keys.forEach(k => {
+        keys.forEach((k) => {
           model.variables[k][`day${d}_${shift}_req`] = 1;
         });
       });
-    }
+    } 
     for (let d = 1; d <= daysInMonth; d++) {
       shiftLeads.forEach(lead => {
         const keys = allShifts.map(shift => `${lead}_${d}_${shift}`);
@@ -128,7 +141,7 @@ module.exports = async (req, res) => {
           if (shift !== 'S2' || weekday === 0 || weekday === 6) {
             model.constraints[`no_${lead}_${d}_${shift}`] = { max: 0 };
             model.variables[key][`no_${lead}_${d}_${shift}`] = 1;
-          }
+          } 
         });
       });
     }

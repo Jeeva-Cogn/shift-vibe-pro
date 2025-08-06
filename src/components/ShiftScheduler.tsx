@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Clock, RefreshCw, Download, Users } from 'lucide-react';
 import { toast } from 'sonner';
+
 import ExcelJS from 'exceljs';
 
 import { getChennaiTime, getChennaiTimeString } from '@/lib/utils';
@@ -13,13 +14,16 @@ import { getChennaiTime, getChennaiTimeString } from '@/lib/utils';
 const ShiftScheduler = () => {
   const [selectedMonth, setSelectedMonth] = useState('2024-01');
   const [selectedYear, setSelectedYear] = useState('2024');
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [chennaiTimeNow, setChennaiTimeNow] = useState(getChennaiTimeString());
   const [exportHistory, setExportHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   // Fetch export history from Neon
+
   const fetchExportHistory = async () => {
+
     setHistoryLoading(true);
     try {
       const res = await fetch('/.netlify/functions/getExports');
@@ -32,6 +36,7 @@ const ShiftScheduler = () => {
       setHistoryLoading(false);
     }
   };
+
 
   React.useEffect(() => {
     fetchExportHistory();
@@ -97,18 +102,56 @@ const ShiftScheduler = () => {
     }
   };
 
+  const fetchScheduleData = async (year: string, month: string) => {
+
+    try {
+      const yearNum = parseInt(year);
+      const monthNum = parseInt(month);
+      const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
+
+      //dummy data
+      const employees = [{ name: 'A' }, { name: 'B' }];
+      const allShifts = ['S1', 'S2', 'S3'];
+      const shiftLeads = ['A', 'B'];
+      const teamLeads = ['A', 'B'];
+
+      const res = await fetch('/api/schedule', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          employees: employees,
+          daysInMonth: daysInMonth,
+          yearNum: yearNum,
+          monthNum: monthNum,
+          shiftRequirements: shiftRequirements,
+          allShifts: allShifts,
+          shiftLeads: shiftLeads,
+          teamLeads: teamLeads
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch schedule data: ${res.status} ${res.statusText}`);
+      }
+
+      const data = await res.json();
+      return data.results;
+    } catch (error) {
+      console.error("Error fetching schedule data:", error);
+      toast.error('Failed to fetch schedule data');
+      return null;
+    }
+  };
+
   const handleExport = async () => {
     setIsExporting(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 1500));
       const monthName = months.find(m => m.value === selectedMonth.split('-')[1])?.label;
       const chennaiTime = getChennaiTimeString();
-      const filename = `Shift_Schedule_${monthName}_${selectedYear}.xlsx`;
 
-      // Initialize ExcelJS workbook
-      const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Schedule');
-      worksheet.addRow(['Sample Shift Schedule']); // Example content, replace as needed
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -132,6 +175,47 @@ const ShiftScheduler = () => {
         return publicUrl;
       };
       const fileUrl = await uploadToStorage(blob, filename);
+
+      const filename = `Shift_Schedule_${monthName}_${selectedYear}.xlsx`;
+
+      // Initialize ExcelJS workbook
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Schedule');
+
+      // Add headers
+      worksheet.addRow(['Employee', 'Day', 'Shift']);
+
+      // Fetch schedule data
+      const year = selectedYear;
+      const month = selectedMonth.split('-')[1];
+      const scheduleData = await fetchScheduleData(year, month);
+
+      if (scheduleData) {
+
+        for (const key in scheduleData) {
+          if (scheduleData[key] === 1) {
+
+            const parts = key.split('_');
+            if (parts.length === 3) {
+              const employeeName = parts[0];
+              const day = parts[1];
+              const shift = parts[2];
+
+              worksheet.addRow([employeeName, day, shift]);
+            }
+          }
+        }
+      } else {
+        worksheet.addRow(['No schedule data available']);
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+      // --- UPLOAD TO GOOGLE CLOUD STORAGE ---
+
+
+
       // Save export metadata to Neon via Netlify Function
       const now = new Date();
       const generatedDate = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()}`;

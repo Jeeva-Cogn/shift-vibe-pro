@@ -15,6 +15,7 @@ exports.handler = async function(event, context) {
       body: JSON.stringify({ error: 'Method not allowed' })
     };
   }
+
   try {
     const { fileName, contentType } = JSON.parse(event.body);
     const bucket = storage.bucket(bucketName);
@@ -29,6 +30,7 @@ exports.handler = async function(event, context) {
     // Public URL for download/view
     const publicUrl = `https://storage.googleapis.com/${bucketName}/${encodeURIComponent(fileName)}`;
     return {
+
       statusCode: 200,
       body: JSON.stringify({ url, publicUrl })
     };
