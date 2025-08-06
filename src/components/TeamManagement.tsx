@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { UserCheck, UserX, Calendar, Plus } from 'lucide-react';
+import { UserCheck, UserX, Calendar, Plus, Users } from 'lucide-react';
 
 interface TeamMember {
   id: string;
