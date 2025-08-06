@@ -4,7 +4,7 @@ import { Calendar, Users, Settings, Clock, Building2, FileText } from 'lucide-re
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import TeamManagement from '@/components/TeamManagement';
-import ShiftScheduler from '@/components/ShiftScheduler';
+import ShiftRoster from '@/components/ShiftRoster';
 import ShiftCalendar from '@/components/ShiftCalendar';
 import Reports from '@/components/Reports';
 
@@ -77,7 +77,7 @@ const Index = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ShiftScheduler />
+                  <ShiftRoster />
                 </CardContent>
               </Card>
             </div>
