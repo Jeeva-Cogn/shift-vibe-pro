@@ -89,19 +89,73 @@ const ShiftScheduler = () => {
         ['Legend:', 'WFO = Green', 'WFH = Cyan', 'OFF = Grey', 'LEAVE = Light Grey'],
         [`Exported at: ${chennaiTime} (Chennai time)`]
       ];
-      const data = [
-        ['Employee', 'Date', 'Shift', 'Type', 'Seat'],
-        ['Jeyakaran (Lead)', '1-Jan-2024', 'S1', 'WFO', 'A1'],
-        ['Karthikeyan (Lead)', '1-Jan-2024', 'S2', 'WFO', 'A2'],
-        ['Manoj (Lead)', '1-Jan-2024', 'S3', 'WFH', '-'],
-        ['Sai Krishna', '1-Jan-2024', 'S1', 'WFO', 'B1'],
-        ['Jeeva', '1-Jan-2024', 'S2', 'WFH', '-'],
-        ['Saran', '1-Jan-2024', 'S3', 'WFO', 'B2'],
-        ['Akshay', '2-Jan-2024', 'S1', 'WFO', 'C1'],
-        ['Murugan', '2-Jan-2024', 'S2', 'WFH', '-'],
-        ['Sahana P', '2-Jan-2024', 'S3', 'WFO', 'C2'],
-        ['Rengadurai', '2-Jan-2024', 'OFF', 'OFF', '-']
+      // Team data (IDs, codes, names)
+      const employees = [
+        { cts: '593300', eshc: 'EH0647', name: 'Dinesh' },
+        { cts: '560008', eshc: 'EG4208', name: 'Mano' },
+        { cts: '410093', eshc: 'EH6832', name: 'Jeyakaran' },
+        { cts: '2167353', eshc: 'C7H8KH', name: 'Karthikeyan' },
+        { cts: '2136623', eshc: 'C8G3CW', name: 'Manoj' },
+        { cts: '2054459', eshc: 'C6X8FS', name: 'Panner' },
+        { cts: '2240608', eshc: 'C7T7SF', name: 'SaiKumar' },
+        { cts: '2054433', eshc: 'C6X7K5', name: 'Sai Krishna' },
+        { cts: '2299004', eshc: 'C8N5H4', name: 'Jeeva' },
+        { cts: '2309236', eshc: 'C8S7B6', name: 'Saran' },
+        { cts: '2328010', eshc: 'C8W2BD', name: 'Akshay' },
+        { cts: '2378392', eshc: 'C9B7ZT', name: 'Murugan' },
+        { cts: '2411200', eshc: 'C9G7D2', name: 'Sahana P' },
+        { cts: '2389541', eshc: 'C9H4JZ', name: 'Rengadurai' },
       ];
+
+      // Helper to get days in month
+      function getDaysInMonth(year, month) {
+        return new Date(year, month, 0).getDate();
+      }
+      // Helper to get weekday name
+      function getWeekday(year, month, day) {
+        return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(year, month-1, day).getDay()];
+      }
+      // Helper to format date as '01-Aug-25'
+      function formatDate(day, month, year) {
+        const monthNames = [
+          'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        ];
+        return `${String(day).padStart(2,'0')}-${monthNames[month - 1]}-${String(year).slice(-2)}`;
+      }
+
+      const yearNum = parseInt(selectedYear, 10);
+      const monthNum = parseInt(selectedMonth.split('-')[1], 10);
+      const daysInMonth = getDaysInMonth(yearNum, monthNum);
+
+      // Header rows
+      const header1 = ['Date/Month/Year', '', '', ...Array.from({length: daysInMonth}, (_, i) => formatDate(i+1, monthNum, yearNum))];
+      const header2 = ['', 'CTS', 'ESHC', 'Name', ...Array.from({length: daysInMonth}, (_, i) => getWeekday(yearNum, monthNum, i+1))];
+
+      // Demo: round-robin shift assignment (replace with your real logic as needed)
+      const shifts = ['S1', 'S2', 'S3', 'S4', 'OFF', 'Leave'];
+      // Build employee rows
+      const empRows = employees.map((emp, empIdx) => {
+        const row = ['', emp.cts, emp.eshc, emp.name];
+        for (let day = 1; day <= daysInMonth; day++) {
+          // For demo, assign shifts in a pattern
+          let shift = shifts[(empIdx + day) % shifts.length];
+          row.push(shift);
+        }
+        return row;
+      });
+
+      // Summary rows for S1, S2, S3 (count per day)
+      function countShift(shiftCode, dayIdx) {
+        return empRows.reduce((acc, row) => row[4+dayIdx] === shiftCode ? acc+1 : acc, 0);
+      }
+      const summaryRows = ['S1','S2','S3'].map(shiftCode => {
+        const row = [shiftCode, ...Array(3).fill(''), ...Array.from({length: daysInMonth}, (_, i) => countShift(shiftCode, i))];
+        return row;
+      });
+
+      // Final data for export
+      const data = [header1, header2, ...empRows, ...summaryRows];
 
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Shift Schedule');
