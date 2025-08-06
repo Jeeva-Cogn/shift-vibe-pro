@@ -16,6 +16,26 @@ const ShiftScheduler = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [chennaiTimeNow, setChennaiTimeNow] = useState(getChennaiTimeString());
+  const [exportHistory, setExportHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  // Fetch export history from Neon
+  const fetchExportHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch('/.netlify/functions/getExports');
+      if (!res.ok) throw new Error('Failed to fetch export history');
+      const data = await res.json();
+      setExportHistory(data);
+    } catch (err) {
+      setExportHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchExportHistory();
+  }, []);
 
   React.useEffect(() => {
     const interval = setInterval(() => {
@@ -84,194 +104,51 @@ const ShiftScheduler = () => {
       const monthName = months.find(m => m.value === selectedMonth.split('-')[1])?.label;
       const chennaiTime = getChennaiTimeString();
       const filename = `Shift_Schedule_${monthName}_${selectedYear}.xlsx`;
-
-      // Sample data
-      const legend = [
-        ['Legend:', 'WFO = Green', 'WFH = Cyan', 'OFF = Grey', 'LEAVE = Light Grey'],
-        [`Exported at: ${chennaiTime} (Chennai time)`]
-      ];
-      // Team data (IDs, codes, names)
-      const employees = [
-        { cts: '593300', eshc: 'EH0647', name: 'Dinesh' },
-        { cts: '560008', eshc: 'EG4208', name: 'Mano' },
-        { cts: '410093', eshc: 'EH6832', name: 'Jeyakaran' },
-        { cts: '2167353', eshc: 'C7H8KH', name: 'Karthikeyan' },
-        { cts: '2136623', eshc: 'C8G3CW', name: 'Manoj' },
-        { cts: '2054459', eshc: 'C6X8FS', name: 'Panner' },
-        { cts: '2240608', eshc: 'C7T7SF', name: 'SaiKumar' },
-        { cts: '2054433', eshc: 'C6X7K5', name: 'Sai Krishna' },
-        { cts: '2299004', eshc: 'C8N5H4', name: 'Jeeva' },
-        { cts: '2309236', eshc: 'C8S7B6', name: 'Saran' },
-        { cts: '2328010', eshc: 'C8W2BD', name: 'Akshay' },
-        { cts: '2378392', eshc: 'C9B7ZT', name: 'Murugan' },
-        { cts: '2411200', eshc: 'C9G7D2', name: 'Sahana P' },
-        { cts: '2389541', eshc: 'C9H4JZ', name: 'Rengadurai' },
-      ];
-
-      // Helper to get days in month
-      function getDaysInMonth(year, month) {
-        return new Date(year, month, 0).getDate();
-      }
-      // Helper to get weekday name
-      function getWeekday(year, month, day) {
-        return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(year, month-1, day).getDay()];
-      }
-      // Helper to format date as '01-Aug-25'
-      function formatDate(day, month, year) {
-        const monthNames = [
-          'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-        ];
-        return `${String(day).padStart(2,'0')}-${monthNames[month - 1]}-${String(year).slice(-2)}`;
-      }
-
-      const yearNum = parseInt(selectedYear, 10);
-      const monthNum = parseInt(selectedMonth.split('-')[1], 10);
-      const daysInMonth = getDaysInMonth(yearNum, monthNum);
-
-      // Header rows (match sample: 3 empty, then CTS, ESHC, Name, then days)
-      const header = [ '', '', '', 'CTS', 'ESHC', 'Name', ...Array.from({length: daysInMonth}, (_, i) => formatDate(i+1, monthNum, yearNum)) ];
-      const subHeader = [ '', '', '', '', '', '', ...Array.from({length: daysInMonth}, (_, i) => getWeekday(yearNum, monthNum, i+1)) ];
-
-
-      // --- AI-based constraint-driven scheduler via backend API ---
-      const allShifts = ['S1', 'S2', 'S3'];
-      const shiftLeads = ['Jeyakaran', 'Karthikeyan', 'Manoj', 'Panner', 'SaiKumar'];
-      const teamLeads = ['Dinesh', 'Mano'];
-      const empIdxByName = name => employees.findIndex(e => e.name === name);
-
-      // Call backend API for scheduling
-      let results;
-      try {
-        const response = await fetch('/api/schedule', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            employees,
-            daysInMonth,
-            yearNum,
-            monthNum,
-            shiftRequirements,
-            allShifts,
-            shiftLeads,
-            teamLeads
-          })
-        });
-        const data = await response.json();
-        results = data.results;
-      } catch (e) {
-        toast.error('AI scheduling failed, falling back to rule-based.');
-      }
-
-      // Prepare empRows: ['', '', '', cts, eshc, name, ...days]
-      const empRows = employees.map(emp => ['', '', '', emp.cts, emp.eshc, emp.name, ...Array(daysInMonth).fill('')]);
-      if (results && results.feasible) {
-        // Fill empRows from results
-        employees.forEach((emp, empIdx) => {
-          for (let d = 1; d <= daysInMonth; d++) {
-            let found = false;
-            allShifts.forEach(shift => {
-              const key = `${emp.name}_${d}_${shift}`;
-              if (results[key] === 1) {
-                empRows[empIdx][6 + d] = shift;
-                found = true;
-              }
-            });
-            if (!found) {
-              empRows[empIdx][6 + d] = 'OFF';
-            }
-          }
-        });
-      } else {
-        // Fallback: everyone OFF
-        employees.forEach((emp, empIdx) => {
-          for (let d = 1; d <= daysInMonth; d++) {
-            empRows[empIdx][6 + d] = 'OFF';
-          }
-        });
-      }
-      // --- END AI-based constraint-driven scheduler ---
-
-      // Summary rows for S1, S2, S3 (count per day)
-      function countShift(shiftCode, dayIdx) {
-        return empRows.reduce((acc, row) => row[6+dayIdx] === shiftCode ? acc+1 : acc, 0);
-      }
-      const summaryRows = ['S1','S2','S3'].map(shiftCode => {
-        const row = ['', '', '', shiftCode, '', '', ...Array.from({length: daysInMonth}, (_, i) => countShift(shiftCode, i+1))];
-        return row;
-      });
-
-      // Final data for export
-      const data = [header, subHeader, ...empRows, ...summaryRows];
-
-      const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Shift Schedule');
-
-
-      // Add legend and data
-      worksheet.addRows(legend);
-      worksheet.addRows(data);
-
-      // Color coding for shift cells (S1/S2/S3/S4 = green, OFF = grey, Leave = light grey)
-      // Data starts after legend (legend.length rows), header+subHeader (2 rows), then empRows
-      const startRow = legend.length + 3; // 1-based index for first employee row
-      const empCount = employees.length;
-      for (let i = 0; i < empCount; i++) {
-        const rowIdx = startRow + i;
-        // Color shift cells (S1/S2/S3/S4, OFF, Leave)
-        for (let d = 0; d < daysInMonth; d++) {
-          const colIdx = 7 + d; // 1-based, skip first 6 columns
-          const cell = worksheet.getRow(rowIdx).getCell(colIdx);
-          switch (cell.value) {
-            case 'S1':
-            case 'S2':
-            case 'S3':
-            case 'S4':
-              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C6F6D5' } }; // green
-              break;
-            case 'OFF':
-              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F3F4F6' } }; // grey
-              break;
-            case 'Leave':
-              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E5E7EB' } }; // light grey
-              break;
-            default:
-              break;
-          }
-        }
-      }
-
-      // Set column widths
-      worksheet.columns = [
-        { width: 20 }, // Employee
-        { width: 12 }, // Date
-        { width: 8 },  // Shift
-        { width: 8 },  // Type
-        { width: 8 }   // Seat
-      ];
-
-      // Color coding for 'Type' column
-      for (let i = legend.length + 2; i < worksheet.rowCount + 1; i++) {
-        const typeCell = worksheet.getCell(`D${i}`);
-        switch (typeCell.value) {
-          case 'WFO':
-            typeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C6F6D5' } };
-            break;
-          case 'WFH':
-            typeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'A7F3D0' } };
-            break;
-          case 'OFF':
-            typeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F3F4F6' } };
-            break;
-          case 'LEAVE':
-            typeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E5E7EB' } };
-            break;
-        }
-      }
-
-      // Generate and download file
+      // ...existing code for legend, employees, helpers, scheduler, ExcelJS, etc...
+      // ...existing code...
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      // --- UPLOAD TO GOOGLE CLOUD STORAGE ---
+      const uploadToStorage = async (fileBlob, fileName) => {
+        // 1. Get signed URL from Netlify Function
+        const res = await fetch('/.netlify/functions/getGcsSignedUrl', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName, contentType: fileBlob.type })
+        });
+        if (!res.ok) throw new Error('Failed to get GCS signed URL');
+        const { url, publicUrl } = await res.json();
+        // 2. Upload file to GCS using signed URL
+        const uploadRes = await fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': fileBlob.type },
+          body: fileBlob
+        });
+        if (!uploadRes.ok) throw new Error('Failed to upload file to GCS');
+        return publicUrl;
+      };
+      const fileUrl = await uploadToStorage(blob, filename);
+      // Save export metadata to Neon via Netlify Function
+      const now = new Date();
+      const generatedDate = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()}`;
+      const generatedTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const status = 'completed';
+      const monthYear = `${monthName} ${selectedYear}`;
+      await fetch('/.netlify/functions/saveExport', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename,
+          monthYear,
+          generatedDate,
+          generatedTime,
+          status,
+          url: fileUrl
+        })
+      });
+      // Refresh export history
+      fetchExportHistory();
+      // Download file for user
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = filename;
@@ -287,8 +164,76 @@ const ShiftScheduler = () => {
     }
   };
 
+  // Download file from URL
+  const handleDownload = (url, filename) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // View file in new tab
+  const handleView = (url) => {
+    window.open(url, '_blank');
+  };
+
   return (
     <div className="space-y-6">
+      {/* Export History Table */}
+      <Card className="transition-all duration-300 hover:shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Reports & Export History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-2 text-xs text-blue-700">Current Chennai Time: {chennaiTimeNow}</div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-xs border">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="px-2 py-1 border">Filename</th>
+                  <th className="px-2 py-1 border">Month/Year</th>
+                  <th className="px-2 py-1 border">Generated Date</th>
+                  <th className="px-2 py-1 border">Generated Time</th>
+                  <th className="px-2 py-1 border">Status</th>
+                  <th className="px-2 py-1 border">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyLoading ? (
+                  <tr><td colSpan={6} className="text-center py-2">Loading...</td></tr>
+                ) : exportHistory.length === 0 ? (
+                  <tr><td colSpan={6} className="text-center py-2">No exports found</td></tr>
+                ) : (
+                  exportHistory.map((exp, idx) => (
+                    <tr key={exp.id || idx} className="border-b">
+                      <td className="px-2 py-1 border">{exp.filename}</td>
+                      <td className="px-2 py-1 border">{exp.month_year || exp.monthYear}</td>
+                      <td className="px-2 py-1 border">{exp.generated_date || exp.generatedDate}</td>
+                      <td className="px-2 py-1 border">{exp.generated_time || exp.generatedTime}</td>
+                      <td className="px-2 py-1 border">
+                        <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">{exp.status}</span>
+                      </td>
+                      <td className="px-2 py-1 border flex gap-2">
+                        <Button size="icon" variant="ghost" onClick={() => handleView(exp.url)} title="View">
+                          <Users className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => handleDownload(exp.url, exp.filename)} title="Download">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
       {/* Controls */}
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
