@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Calendar, Users, Settings, Clock, Building2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,7 +36,7 @@ const Index = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-1/2 mx-auto">
+          <TabsList className="grid w-full grid-cols-3 lg:w-1/2 mx-auto">
             <TabsTrigger value="schedule" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
               Schedule
@@ -52,7 +51,7 @@ const Index = () => {
             </TabsTrigger>
             <TabsTrigger value="calendar" className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              Calendar
+              Calendar & Leaves
             </TabsTrigger>
           </TabsList>
 
@@ -105,7 +104,7 @@ const Index = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5 text-blue-600" />
-                  Monthly Calendar View
+                  Calendar & Leave Management
                 </CardTitle>
               </CardHeader>
               <CardContent>

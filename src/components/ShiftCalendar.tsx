@@ -4,12 +4,45 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ChevronLeft, ChevronRight, Calendar, User, Clock, Plus } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, User, Clock, Plus, UserMinus } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+interface LeaveRequest {
+  member: string;
+  date: string;
+  status: 'approved' | 'pending' | 'rejected';
+}
 
 const ShiftCalendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([
+    { member: 'Sai Krishna', date: '2025-01-05', status: 'approved' },
+    { member: 'Jeeva', date: '2025-01-12', status: 'approved' },
+    { member: 'Saran', date: '2025-01-12', status: 'approved' },
+    { member: 'Manoj', date: '2025-01-18', status: 'approved' },
+  ]);
+  const [selectedMemberForLeave, setSelectedMemberForLeave] = useState<string>('');
+  const [selectedLeaveDate, setSelectedLeaveDate] = useState<Date>();
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+
+  const teamMembers = [
+    'Jeyakaran', 'Karthikeyan', 'Manoj', 'Panner', 'SaiKumar', 
+    'Sai Krishna', 'Jeeva', 'Saran', 'Akshay', 'Murugan', 
+    'Sahana P', 'Rengadurai'
+  ];
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 10 }, (_, i) => currentYear - 2 + i);
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -27,48 +60,94 @@ const ShiftCalendar = () => {
     setCurrentDate(newDate);
   };
 
+  const handleMonthYearChange = (type: 'month' | 'year', value: string) => {
+    const newDate = new Date(currentDate);
+    if (type === 'month') {
+      newDate.setMonth(months.indexOf(value));
+    } else {
+      newDate.setFullYear(parseInt(value));
+    }
+    setCurrentDate(newDate);
+  };
+
+  const isOnLeave = (member: string, day: number) => {
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return leaveRequests.some(req => 
+      req.member === member && 
+      req.date === dateStr && 
+      req.status === 'approved'
+    );
+  };
+
+  const addLeaveRequest = () => {
+    if (selectedMemberForLeave && selectedLeaveDate) {
+      const dateStr = format(selectedLeaveDate, 'yyyy-MM-dd');
+      const newRequest: LeaveRequest = {
+        member: selectedMemberForLeave,
+        date: dateStr,
+        status: 'approved'
+      };
+      
+      // Check if leave already exists for this member on this date
+      const existingIndex = leaveRequests.findIndex(req => 
+        req.member === selectedMemberForLeave && req.date === dateStr
+      );
+      
+      if (existingIndex >= 0) {
+        // Update existing request
+        const updated = [...leaveRequests];
+        updated[existingIndex] = newRequest;
+        setLeaveRequests(updated);
+      } else {
+        // Add new request
+        setLeaveRequests([...leaveRequests, newRequest]);
+      }
+      
+      setSelectedMemberForLeave('');
+      setSelectedLeaveDate(undefined);
+      setShowLeaveDialog(false);
+    }
+  };
+
+  const removeLeaveRequest = (member: string, date: string) => {
+    setLeaveRequests(leaveRequests.filter(req => 
+      !(req.member === member && req.date === date)
+    ));
+  };
+
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
   const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
-  // Mock shift data with new color coding and leave management
   const getShiftData = (day: number) => {
     const dayOfWeek = new Date(currentDate.getFullYear(), currentDate.getMonth(), day).getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
     const isSunday = dayOfWeek === 0;
     
-    // Mock leave data - some members on leave
-    const leaveData = {
-      5: ['Sai Krishna'], // 5th day someone is on leave
-      12: ['Jeeva', 'Saran'], // 12th day multiple people on leave
-      18: ['Manoj']
-    };
-    
-    // Mock week off data - consecutive days after 4-6 working days
+    // Week off data - consecutive days after 4-6 working days
     const weekOffData = {
-      8: ['Akshay', 'Murugan'], // Week off on 8th-9th
+      8: ['Akshay', 'Murugan'],
       9: ['Akshay', 'Murugan'],
-      15: ['Sahana P', 'Rengadurai'], // Week off on 15th-16th
+      15: ['Sahana P', 'Rengadurai'],
       16: ['Sahana P', 'Rengadurai'],
-      22: ['Karthikeyan'], // Single day week off
-      29: ['Jeyakaran', 'Panner'], // Week off on 29th-30th
+      22: ['Karthikeyan'],
+      29: ['Jeyakaran', 'Panner'],
       30: ['Jeyakaran', 'Panner']
     };
 
-    const membersOnLeave = leaveData[day] || [];
     const membersOnWeekOff = weekOffData[day] || [];
 
     if (isSunday) {
       return [
         { 
           shift: 'S2', 
-          members: ['Jeyakaran', 'Sai Krishna'].filter(m => !membersOnLeave.includes(m) && !membersOnWeekOff.includes(m)), 
+          members: ['Jeyakaran', 'Sai Krishna'].filter(m => !isOnLeave(m, day) && !membersOnWeekOff.includes(m)), 
           count: 2,
-          wfoMembers: ['Jeyakaran'], // Mon-Wed WFO pattern
+          wfoMembers: ['Jeyakaran'],
           wfhMembers: ['Sai Krishna']
         },
         { 
           shift: 'S3', 
-          members: ['Karthikeyan', 'Jeeva'].filter(m => !membersOnLeave.includes(m) && !membersOnWeekOff.includes(m)), 
+          members: ['Karthikeyan', 'Jeeva'].filter(m => !isOnLeave(m, day) && !membersOnWeekOff.includes(m)), 
           count: 2,
           wfoMembers: ['Karthikeyan'],
           wfhMembers: ['Jeeva']
@@ -78,21 +157,21 @@ const ShiftCalendar = () => {
       return [
         { 
           shift: 'S1', 
-          members: ['Manoj', 'Saran'].filter(m => !membersOnLeave.includes(m) && !membersOnWeekOff.includes(m)), 
+          members: ['Manoj', 'Saran'].filter(m => !isOnLeave(m, day) && !membersOnWeekOff.includes(m)), 
           count: 2,
           wfoMembers: ['Manoj'],
           wfhMembers: ['Saran']
         },
         { 
           shift: 'S2', 
-          members: ['Panner', 'Akshay'].filter(m => !membersOnLeave.includes(m) && !membersOnWeekOff.includes(m)), 
+          members: ['Panner', 'Akshay'].filter(m => !isOnLeave(m, day) && !membersOnWeekOff.includes(m)), 
           count: 2,
           wfoMembers: ['Panner'],
           wfhMembers: ['Akshay']
         },
         { 
           shift: 'S3', 
-          members: ['SaiKumar', 'Murugan'].filter(m => !membersOnLeave.includes(m) && !membersOnWeekOff.includes(m)), 
+          members: ['SaiKumar', 'Murugan'].filter(m => !isOnLeave(m, day) && !membersOnWeekOff.includes(m)), 
           count: 2,
           wfoMembers: ['SaiKumar'],
           wfhMembers: ['Murugan']
@@ -102,21 +181,21 @@ const ShiftCalendar = () => {
       return [
         { 
           shift: 'S1', 
-          members: ['Jeyakaran', 'Sai Krishna', 'Sahana P'].filter(m => !membersOnLeave.includes(m) && !membersOnWeekOff.includes(m)), 
+          members: ['Jeyakaran', 'Sai Krishna', 'Sahana P'].filter(m => !isOnLeave(m, day) && !membersOnWeekOff.includes(m)), 
           count: 3,
-          wfoMembers: ['Jeyakaran', 'Sahana P'], // Following Mon-Wed pattern
+          wfoMembers: ['Jeyakaran', 'Sahana P'],
           wfhMembers: ['Sai Krishna']
         },
         { 
           shift: 'S2', 
-          members: ['Karthikeyan', 'Rengadurai'].filter(m => !membersOnLeave.includes(m) && !membersOnWeekOff.includes(m)), 
+          members: ['Karthikeyan', 'Rengadurai'].filter(m => !isOnLeave(m, day) && !membersOnWeekOff.includes(m)), 
           count: 2,
           wfoMembers: ['Karthikeyan'],
           wfhMembers: ['Rengadurai']
         },
         { 
           shift: 'S3', 
-          members: ['Manoj', 'Jeeva', 'Saran'].filter(m => !membersOnLeave.includes(m) && !membersOnWeekOff.includes(m)), 
+          members: ['Manoj', 'Jeeva', 'Saran'].filter(m => !isOnLeave(m, day) && !membersOnWeekOff.includes(m)), 
           count: 3,
           wfoMembers: ['Manoj', 'Jeeva'],
           wfhMembers: ['Saran']
@@ -146,11 +225,7 @@ const ShiftCalendar = () => {
 
   const getMemberStatus = (member: string, day: number) => {
     // Check for leave first
-    const leaveData = {
-      5: ['Sai Krishna'],
-      12: ['Jeeva', 'Saran'],
-      18: ['Manoj']
-    };
+    if (isOnLeave(member, day)) return 'LEAVE';
     
     // Check for week off
     const weekOffData = {
@@ -163,13 +238,11 @@ const ShiftCalendar = () => {
       30: ['Jeyakaran', 'Panner']
     };
 
-    if (leaveData[day]?.includes(member)) return 'LEAVE';
     if (weekOffData[day]?.includes(member)) return 'OFF';
     
     // Determine WFO/WFH based on consecutive 3-day pattern
     const dayOfWeek = new Date(currentDate.getFullYear(), currentDate.getMonth(), day).getDay();
     
-    // Simple pattern for demonstration - in real implementation, this would be more complex
     if (dayOfWeek >= 1 && dayOfWeek <= 3) return 'WFO'; // Mon-Wed
     if (dayOfWeek >= 4 && dayOfWeek <= 5) return 'WFH'; // Thu-Fri
     
@@ -178,13 +251,45 @@ const ShiftCalendar = () => {
 
   return (
     <div className="space-y-6">
-      {/* Calendar Header */}
+      {/* Calendar Header with Month/Year Selectors */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-blue-600" />
-          <h3 className="text-lg font-semibold">{monthName}</h3>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="h-5 w-5 text-blue-600" />
+            <h3 className="text-lg font-semibold">Calendar & Leave Management</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={months[currentDate.getMonth()]} onValueChange={(value) => handleMonthYearChange('month', value)}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {months.map((month) => (
+                  <SelectItem key={month} value={month}>
+                    {month}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={currentDate.getFullYear().toString()} onValueChange={(value) => handleMonthYearChange('year', value)}>
+              <SelectTrigger className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowLeaveDialog(true)}>
+            <UserMinus className="h-4 w-4 mr-2" />
+            Add Leave
+          </Button>
           <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -193,6 +298,100 @@ const ShiftCalendar = () => {
           </Button>
         </div>
       </div>
+
+      {/* Leave Management Dialog */}
+      <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Leave Request</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Select Member</label>
+              <Select value={selectedMemberForLeave} onValueChange={setSelectedMemberForLeave}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose team member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teamMembers.map((member) => (
+                    <SelectItem key={member} value={member}>
+                      {member}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Select Date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !selectedLeaveDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedLeaveDate ? format(selectedLeaveDate, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedLeaveDate}
+                    onSelect={setSelectedLeaveDate}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={addLeaveRequest} className="flex-1">
+                Add Leave
+              </Button>
+              <Button variant="outline" onClick={() => setShowLeaveDialog(false)} className="flex-1">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Leave Requests List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Current Leave Requests</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {leaveRequests.length === 0 ? (
+            <p className="text-gray-500 text-center py-4">No leave requests</p>
+          ) : (
+            <div className="space-y-2">
+              {leaveRequests.map((request, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <User className="h-4 w-4 text-gray-600" />
+                    <span className="font-medium">{request.member}</span>
+                    <span className="text-sm text-gray-600">{format(new Date(request.date), 'PPP')}</span>
+                    <Badge className={getStatusColor('LEAVE')}>
+                      {request.status.toUpperCase()}
+                    </Badge>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => removeLeaveRequest(request.member, request.date)}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Calendar Grid */}
       <Card>
@@ -272,18 +471,6 @@ const ShiftCalendar = () => {
                               );
                             })}
                           </div>
-                          
-                          {/* Show members on leave or week off for this shift */}
-                          {day === 5 && shift.shift === 'S1' && (
-                            <div className="text-sm text-gray-600">
-                              <span className="font-medium">On Leave:</span> Sai Krishna
-                            </div>
-                          )}
-                          {day === 12 && (shift.shift === 'S2' || shift.shift === 'S3') && (
-                            <div className="text-sm text-gray-600">
-                              <span className="font-medium">On Leave:</span> {shift.shift === 'S2' ? 'Jeeva' : 'Saran'}
-                            </div>
-                          )}
                         </div>
                       ))}
                     </div>
