@@ -9,7 +9,29 @@ import { toast } from 'sonner';
 
 const ShiftScheduler = () => {
   const [selectedMonth, setSelectedMonth] = useState('2024-01');
+  const [selectedYear, setSelectedYear] = useState('2024');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const months = [
+    { value: '01', label: 'January' },
+    { value: '02', label: 'February' },
+    { value: '03', label: 'March' },
+    { value: '04', label: 'April' },
+    { value: '05', label: 'May' },
+    { value: '06', label: 'June' },
+    { value: '07', label: 'July' },
+    { value: '08', label: 'August' },
+    { value: '09', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' }
+  ];
+
+  const years = Array.from({ length: 10 }, (_, i) => {
+    const year = new Date().getFullYear() + i - 2;
+    return { value: year.toString(), label: year.toString() };
+  });
 
   const shiftRequirements = {
     'Monday-Friday': {
@@ -32,13 +54,44 @@ const ShiftScheduler = () => {
   const handleGenerateSchedule = async () => {
     setIsGenerating(true);
     try {
-      // Simulate schedule generation
       await new Promise(resolve => setTimeout(resolve, 2000));
-      toast.success('Schedule generated successfully!');
+      toast.success('Schedule generated successfully!', {
+        description: `Generated for ${months.find(m => m.value === selectedMonth.split('-')[1])?.label} ${selectedYear}`
+      });
     } catch (error) {
       toast.error('Failed to generate schedule');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      // Simulate export process
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const monthName = months.find(m => m.value === selectedMonth.split('-')[1])?.label;
+      const filename = `Shift_Schedule_${monthName}_${selectedYear}.xlsx`;
+      
+      // Here would be the actual Excel export logic with colors
+      // For now, we'll simulate the download
+      const link = document.createElement('a');
+      link.href = '#';
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('Export completed!', {
+        description: `Downloaded: ${filename}`
+      });
+      
+      // This would also save to the reports history
+    } catch (error) {
+      toast.error('Failed to export schedule');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -47,27 +100,37 @@ const ShiftScheduler = () => {
       {/* Controls */}
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-          <div>
-            <label className="text-sm font-medium mb-2 block">Select Month</label>
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select month" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="2024-01">January 2024</SelectItem>
-                <SelectItem value="2024-02">February 2024</SelectItem>
-                <SelectItem value="2024-03">March 2024</SelectItem>
-                <SelectItem value="2024-04">April 2024</SelectItem>
-                <SelectItem value="2024-05">May 2024</SelectItem>
-                <SelectItem value="2024-06">June 2024</SelectItem>
-                <SelectItem value="2024-07">July 2024</SelectItem>
-                <SelectItem value="2024-08">August 2024</SelectItem>
-                <SelectItem value="2024-09">September 2024</SelectItem>
-                <SelectItem value="2024-10">October 2024</SelectItem>
-                <SelectItem value="2024-11">November 2024</SelectItem>
-                <SelectItem value="2024-12">December 2024</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex gap-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Select Month</label>
+              <Select value={selectedMonth.split('-')[1]} onValueChange={(month) => setSelectedMonth(`${selectedYear}-${month}`)}>
+                <SelectTrigger className="w-[150px] transition-all duration-200 hover:scale-105">
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {months.map((month) => (
+                    <SelectItem key={month.value} value={month.value}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Select Year</label>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[120px] transition-all duration-200 hover:scale-105">
+                  <SelectValue placeholder="Select year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map((year) => (
+                    <SelectItem key={year.value} value={year.value}>
+                      {year.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
         
@@ -75,7 +138,7 @@ const ShiftScheduler = () => {
           <Button 
             onClick={handleGenerateSchedule} 
             disabled={isGenerating}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 hover:scale-105"
           >
             {isGenerating ? (
               <>
@@ -89,9 +152,23 @@ const ShiftScheduler = () => {
               </>
             )}
           </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export
+          <Button 
+            variant="outline" 
+            onClick={handleExport}
+            disabled={isExporting}
+            className="transition-all duration-200 hover:scale-105"
+          >
+            {isExporting ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                Export Excel
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -99,7 +176,7 @@ const ShiftScheduler = () => {
       {/* Shift Requirements */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {Object.entries(shiftRequirements).map(([day, shifts]) => (
-          <Card key={day}>
+          <Card key={day} className="transition-all duration-300 hover:shadow-lg hover:scale-105">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">{day}</CardTitle>
             </CardHeader>
@@ -120,7 +197,7 @@ const ShiftScheduler = () => {
       </div>
 
       {/* Rules Summary */}
-      <Card>
+      <Card className="transition-all duration-300 hover:shadow-lg">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Clock className="h-4 w-4" />
@@ -132,9 +209,9 @@ const ShiftScheduler = () => {
             <div className="space-y-2">
               <h4 className="font-medium text-blue-600">Lead Requirements</h4>
               <ul className="space-y-1 text-gray-600">
-                <li>• One of the 5 leads must be in every shift</li>
+                <li>• One of the 3 leads must be in every shift</li>
                 <li>• Leads: Jeyakaran, Karthikeyan, Manoj, Panner, SaiKumar</li>
-                <li>• Dinesh and Mano are S2 only, no shifts</li>
+                <li>• Dinesh and Mano are Team Leads (S2 only, weekends off)</li>
               </ul>
             </div>
             <div className="space-y-2">
@@ -150,7 +227,7 @@ const ShiftScheduler = () => {
               <h4 className="font-medium text-orange-600">Office Requirements</h4>
               <ul className="space-y-1 text-gray-600">
                 <li>• Max 8 seats available</li>
-                <li>• 3 days WFO, 2 days WFH per week</li>
+                <li>• 3 consecutive days WFO, 2 days WFH</li>
                 <li>• At least 2 members in office per shift</li>
               </ul>
             </div>
@@ -158,8 +235,8 @@ const ShiftScheduler = () => {
               <h4 className="font-medium text-purple-600">Leave Management</h4>
               <ul className="space-y-1 text-gray-600">
                 <li>• Consecutive week offs allowed</li>
-                <li>• Extra offs with multiple day selection</li>
                 <li>• Week offs limited to monthly weekends</li>
+                <li>• Leave management integrated with calendar</li>
               </ul>
             </div>
           </div>

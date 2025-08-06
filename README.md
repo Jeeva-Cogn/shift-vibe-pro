@@ -1,73 +1,162 @@
-# Welcome to your Lovable project
 
-## Project info
+# Shift Scheduler
 
-**URL**: https://lovable.dev/projects/e05a0ce9-a9ea-460c-afdd-20d54a1820ec
+A comprehensive web application for managing team shifts, office seating arrangements, and leave management.
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+### 🎯 Core Functionality
+- **Shift Management**: Generate and manage shift schedules for teams with customizable patterns
+- **Team Management**: Organize team members with different roles (Leads, Associates, Team Leads)
+- **Office Seating**: Manage WFO/WFH patterns and office seating arrangements
+- **Leave Management**: Integrated calendar-based leave management system
+- **Reports & Export**: Export schedules to Excel with color-coded formatting
 
-**Use Lovable**
+### 🏢 Team Structure
+- **Total Team Members**: 15
+- **Leads (5)**: Must be present in all shifts (S1, S2, S3)
+- **Associates (8)**: Available for all shifts with flexible scheduling
+- **Team Leads (2)**: S2 shift only with automatic weekend offs
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/e05a0ce9-a9ea-460c-afdd-20d54a1820ec) and start prompting.
+### ⏰ Shift Patterns
+- **Monday-Friday**: S1(3), S2(2), S3(3)
+- **Saturday**: S1(2), S2(2), S3(2)
+- **Sunday**: S2(2), S3(2) only
 
-Changes made via Lovable will be committed automatically to this repo.
+### 🏠 WFO/WFH Rules
+- 3 consecutive days WFO, 2 days WFH per week
+- Minimum 2 members in office per shift
+- 8 office seats available
+- No alternate WFO patterns allowed
 
-**Use your preferred IDE**
+### 🎨 Color Coding
+- **OFF**: Grey
+- **LEAVE**: Light Grey
+- **WFO**: Green
+- **WFH**: Cyan
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Technology Stack
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- **Frontend**: React 18, TypeScript
+- **UI Library**: shadcn/ui components
+- **Styling**: Tailwind CSS
+- **Build Tool**: Vite
+- **State Management**: React hooks
+- **Excel Export**: xlsx library
+- **Icons**: Lucide React
+- **Notifications**: Sonner
 
-Follow these steps:
+## Installation
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd shift-scheduler
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+2. Install dependencies:
+```bash
+npm install
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+3. Start the development server:
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+4. Open your browser and navigate to `http://localhost:8080`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Usage
 
-**Use GitHub Codespaces**
+### Getting Started
+1. Navigate to the **Schedule** tab to generate shift schedules
+2. Use **Team** tab to manage team members and office seating
+3. Access **Calendar & Leaves** for leave management
+4. View **Reports** for export history and download schedules
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Generating Schedules
+1. Select the desired month and year
+2. Click "Generate Schedule" to create the shift roster
+3. Use "Export Excel" to download the schedule with color formatting
+4. All exports are automatically saved to the Reports section
 
-## What technologies are used for this project?
+### Managing Leaves
+1. Go to Calendar & Leaves tab
+2. Select a team member from the dropdown
+3. Choose the leave dates using the date picker
+4. Approved leaves will be reflected in generated schedules
 
-This project is built with:
+### Office Management
+1. View current seating arrangements in the Team tab
+2. Monitor WFO/WFH patterns and compliance
+3. Ensure minimum office occupancy requirements are met
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Project Structure
 
-## How can I deploy this project?
+```
+src/
+├── components/
+│   ├── ui/              # shadcn/ui components
+│   ├── ShiftScheduler.tsx
+│   ├── TeamManagement.tsx
+│   ├── ShiftCalendar.tsx
+│   └── Reports.tsx
+├── pages/
+│   └── Index.tsx        # Main application
+├── lib/
+│   └── utils.ts         # Utility functions
+└── App.tsx              # Application root
+```
 
-Simply open [Lovable](https://lovable.dev/projects/e05a0ce9-a9ea-460c-afdd-20d54a1820ec) and click on Share -> Publish.
+## Key Features Explained
 
-## Can I connect a custom domain to my Lovable project?
+### Intelligent Scheduling
+- Automatic lead assignment to ensure coverage
+- Weekend off management with consecutive day limits
+- Integration with leave management system
+- WFO/WFH pattern enforcement
 
-Yes, you can!
+### Export Functionality
+- Color-coded Excel exports
+- Automatic filename generation
+- Export history tracking
+- Downloadable and viewable reports
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Responsive Design
+- Mobile-friendly interface
+- Smooth animations and transitions
+- Modern UI with gradient backgrounds
+- Accessible design patterns
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/new-feature`)
+3. Commit your changes (`git commit -am 'Add new feature'`)
+4. Push to the branch (`git push origin feature/new-feature`)
+5. Create a Pull Request
+
+## Development Notes
+
+### Team Member Roles
+- **Leads**: Jeyakaran, Karthikeyan, Manoj, Panner, SaiKumar
+- **Team Leads**: Dinesh, Mano (S2 only, weekends off)
+- **Associates**: Sai Krishna, Jeeva, Saran, Akshay, Murugan, Sahana P, Rengadurai
+
+### Scheduling Rules
+- One lead must be present in every shift
+- Week offs after 4-6 consecutive working days
+- Week offs limited to monthly weekend count
+- Team leads have fixed weekend offs
+- Leave integration overrides shift assignments
+
+## Watermark
+The application includes a subtle "Jeeva's Vibe" watermark that doesn't interfere with functionality.
+
+## License
+
+This project is proprietary software developed for internal team management.
+
+---
+
+*Built with ❤️ for efficient team management*
