@@ -9,7 +9,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, User, Clock, Plus, UserMinus } from 'lucide-react';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, getChennaiTimeString } from '@/lib/utils';
 
 interface LeaveRequest {
   member: string;
@@ -18,6 +18,13 @@ interface LeaveRequest {
 }
 
 const ShiftCalendar = () => {
+  const [chennaiTimeNow, setChennaiTimeNow] = React.useState(getChennaiTimeString());
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setChennaiTimeNow(getChennaiTimeString());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([
@@ -251,6 +258,10 @@ const ShiftCalendar = () => {
 
   return (
     <div className="space-y-6">
+      {/* Chennai Time Banner */}
+      <div className="w-full text-center py-2 bg-blue-50 text-blue-700 font-semibold rounded">
+        Current Chennai Time: {chennaiTimeNow}
+      </div>
       {/* Calendar Header with Month/Year Selectors */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
