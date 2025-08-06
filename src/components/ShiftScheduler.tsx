@@ -104,8 +104,12 @@ const ShiftScheduler = () => {
       const monthName = months.find(m => m.value === selectedMonth.split('-')[1])?.label;
       const chennaiTime = getChennaiTimeString();
       const filename = `Shift_Schedule_${monthName}_${selectedYear}.xlsx`;
-      // ...existing code for legend, employees, helpers, scheduler, ExcelJS, etc...
-      // ...existing code...
+
+      // Initialize ExcelJS workbook
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Schedule');
+      worksheet.addRow(['Sample Shift Schedule']); // Example content, replace as needed
+
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       // --- UPLOAD TO GOOGLE CLOUD STORAGE ---
