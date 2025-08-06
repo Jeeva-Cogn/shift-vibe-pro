@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { UserCheck, UserX, Calendar, Plus, Users } from 'lucide-react';
+import { UserCheck, UserX, Calendar, Plus, User } from 'lucide-react';
 
 interface TeamMember {
   id: string;
@@ -106,7 +106,7 @@ const TeamManagement = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4 text-green-600" />
+              <User className="h-4 w-4 text-green-600" />
               Associates (7/7)
             </CardTitle>
           </CardHeader>
