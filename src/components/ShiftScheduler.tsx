@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar, Clock, RefreshCw, Download, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import ExcelJS from 'exceljs';
-import solver from 'javascript-lp-solver';
+
 import { getChennaiTime, getChennaiTimeString } from '@/lib/utils';
 
 const ShiftScheduler = () => {
@@ -134,204 +134,31 @@ const ShiftScheduler = () => {
       const subHeader = [ '', '', '', '', '', '', ...Array.from({length: daysInMonth}, (_, i) => getWeekday(yearNum, monthNum, i+1)) ];
 
 
-      // --- AI-based constraint-driven scheduler using javascript-lp-solver ---
-      // Build a model for the solver
-      // Variables: x_{emp}_{day}_{shift} = 1 if emp is assigned to shift on day
-      // Constraints: business rules
-      // Objective: maximize fairness (minimize max difference in shift counts)
-
-      // Helper to get all shift codes for a day
+      // --- AI-based constraint-driven scheduler via backend API ---
       const allShifts = ['S1', 'S2', 'S3'];
       const shiftLeads = ['Jeyakaran', 'Karthikeyan', 'Manoj', 'Panner', 'SaiKumar'];
       const teamLeads = ['Dinesh', 'Mano'];
       const empIdxByName = name => employees.findIndex(e => e.name === name);
 
-      // Build variables
-      const variables = {};
-      employees.forEach(emp => {
-        for (let d = 1; d <= daysInMonth; d++) {
-          allShifts.forEach(shift => {
-            const key = `${emp.name}_${d}_${shift}`;
-            variables[key] = 0;
-          });
-        }
-      });
-
-      // Build model
-      const model = {
-        optimize: 'fairness',
-        opType: 'min',
-        constraints: {},
-        variables: {},
-        ints: {},
-      };
-
-      // For each employee, day, shift: create variable, integer, and add randomization to fairness
-      employees.forEach(emp => {
-        for (let d = 1; d <= daysInMonth; d++) {
-          allShifts.forEach(shift => {
-            const key = `${emp.name}_${d}_${shift}`;
-            // Add a small random value to fairness to break ties and encourage varied solutions
-            model.variables[key] = { fairness: 1 + Math.random() * 0.1 };
-            model.ints[key] = 1;
-          });
-        }
-      });
-
-      // --- Strict week off constraints ---
-      // 1. Each employee must have OFF only on weekends (Saturday/Sunday)
-      employees.forEach(emp => {
-        for (let d = 1; d <= daysInMonth; d++) {
-          const date = new Date(yearNum, monthNum - 1, d);
-          const weekday = date.getDay();
-          // If not Saturday or Sunday, prevent OFF
-          if (weekday !== 0 && weekday !== 6) {
-            // Prevent all OFF on weekdays
-            model.constraints[`${emp.name}_noWeekdayOff_${d}`] = { max: 0 };
-            // OFF means not assigned to any shift
-            allShifts.forEach(shift => {
-              model.variables[`${emp.name}_${d}_${shift}`][`${emp.name}_noWeekdayOff_${d}`] = 1;
-            });
-          }
-        }
-      });
-
-      // 2. After 4-6 working days, must have a week off (on a weekend)
-      // For each employee, count working days between weekends, enforce 4-6
-      employees.forEach(emp => {
-        let lastOff = 0;
-        let workStreak = 0;
-        for (let d = 1; d <= daysInMonth; d++) {
-          const date = new Date(yearNum, monthNum - 1, d);
-          const weekday = date.getDay();
-          if (weekday === 6 || weekday === 0) {
-            // Weekend: must be OFF at least once every 4-6 days
-            // Count working days since last weekend
-            if (d - lastOff > 6) {
-              // Too many working days, force OFF
-              model.constraints[`${emp.name}_mustOff_${d}`] = { min: 1 };
-              allShifts.forEach(shift => {
-                model.variables[`${emp.name}_${d}_${shift}`][`${emp.name}_mustOff_${d}`] = 0;
-              });
-            }
-            lastOff = d;
-            workStreak = 0;
-          } else {
-            workStreak++;
-            if (workStreak > 6) {
-              // Not allowed
-              model.constraints[`${emp.name}_noLongWork_${d}`] = { max: 0 };
-              allShifts.forEach(shift => {
-                model.variables[`${emp.name}_${d}_${shift}`][`${emp.name}_noLongWork_${d}`] = 1;
-              });
-            }
-          }
-        }
-      });
-
-      // 3. Consecutive OFFs only allowed on weekends
-      employees.forEach(emp => {
-        for (let d = 2; d <= daysInMonth; d++) {
-          const date1 = new Date(yearNum, monthNum - 1, d - 1);
-          const date2 = new Date(yearNum, monthNum - 1, d);
-          const wd1 = date1.getDay();
-          const wd2 = date2.getDay();
-          // If both days are not weekends, prevent consecutive OFFs
-          if (!((wd1 === 6 || wd1 === 0) && (wd2 === 6 || wd2 === 0))) {
-            // If both days are not weekends, prevent both days being OFF
-            const key1 = allShifts.map(shift => `${emp.name}_${d-1}_${shift}`);
-            const key2 = allShifts.map(shift => `${emp.name}_${d}_${shift}`);
-            // At least one must be working
-            model.constraints[`${emp.name}_noConsecOff_${d}`] = { min: 1 };
-            key1.forEach(k => {
-              model.variables[k][`${emp.name}_noConsecOff_${d}`] = 1;
-            });
-            key2.forEach(k => {
-              model.variables[k][`${emp.name}_noConsecOff_${d}`] = 1;
-            });
-          }
-        }
-      });
-      // --- END strict week off constraints ---
-
-      // Each employee can have at most 1 shift per day
-      employees.forEach(emp => {
-        for (let d = 1; d <= daysInMonth; d++) {
-          const keys = allShifts.map(shift => `${emp.name}_${d}_${shift}`);
-          model.constraints[`${emp.name}_day${d}_oneShift`] = { max: 1 };
-          keys.forEach(k => {
-            model.variables[k][`${emp.name}_day${d}_oneShift`] = 1;
-          });
-        }
-      });
-
-      // Each shift per day must be filled as per requirements
-      for (let d = 1; d <= daysInMonth; d++) {
-        const date = new Date(yearNum, monthNum - 1, d);
-        const weekday = date.getDay();
-        let req;
-        if (weekday === 0) req = shiftRequirements['Sunday'];
-        else if (weekday === 6) req = shiftRequirements['Saturday'];
-        else req = shiftRequirements['Monday-Friday'];
-        allShifts.forEach(shift => {
-          const keys = employees.map(emp => `${emp.name}_${d}_${shift}`);
-          model.constraints[`day${d}_${shift}_req`] = { equal: req[shift] };
-          keys.forEach(k => {
-            model.variables[k][`day${d}_${shift}_req`] = 1;
-          });
-        });
-      }
-
-      // Each lead must be present in at least one shift per day (if not team lead)
-      for (let d = 1; d <= daysInMonth; d++) {
-        shiftLeads.forEach(lead => {
-          const keys = allShifts.map(shift => `${lead}_${d}_${shift}`);
-          model.constraints[`lead_${lead}_day${d}`] = { min: 1 };
-          keys.forEach(k => {
-            model.variables[k][`lead_${lead}_day${d}`] = 1;
-          });
-        });
-      }
-
-      // Team leads (Dinesh, Mano) only in S2, weekdays only
-      for (let d = 1; d <= daysInMonth; d++) {
-        const date = new Date(yearNum, monthNum - 1, d);
-        const weekday = date.getDay();
-        teamLeads.forEach(lead => {
-          allShifts.forEach(shift => {
-            const key = `${lead}_${d}_${shift}`;
-            if (shift !== 'S2' || weekday === 0 || weekday === 6) {
-              // Not allowed
-              model.constraints[`no_${lead}_${d}_${shift}`] = { max: 0 };
-              model.variables[key][`no_${lead}_${d}_${shift}`] = 1;
-            }
-          });
-        });
-      }
-
-      // Try to balance shifts among employees (fairness)
-      // For each employee, total shifts assigned should be close to average
-      const totalShifts = daysInMonth * allShifts.length;
-      const avgShifts = Math.floor((totalShifts * 1.0) / employees.length);
-      employees.forEach(emp => {
-        const keys = [];
-        for (let d = 1; d <= daysInMonth; d++) {
-          allShifts.forEach(shift => {
-            keys.push(`${emp.name}_${d}_${shift}`);
-          });
-        }
-        model.constraints[`${emp.name}_minShifts`] = { min: avgShifts - 1 };
-        model.constraints[`${emp.name}_maxShifts`] = { max: avgShifts + 1 };
-        keys.forEach(k => {
-          model.variables[k][`${emp.name}_minShifts`] = 1;
-          model.variables[k][`${emp.name}_maxShifts`] = 1;
-        });
-      });
-
-      // Solve the model
+      // Call backend API for scheduling
       let results;
       try {
-        results = solver.Solve(model);
+        const response = await fetch('/api/schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            employees,
+            daysInMonth,
+            yearNum,
+            monthNum,
+            shiftRequirements,
+            allShifts,
+            shiftLeads,
+            teamLeads
+          })
+        });
+        const data = await response.json();
+        results = data.results;
       } catch (e) {
         toast.error('AI scheduling failed, falling back to rule-based.');
       }
