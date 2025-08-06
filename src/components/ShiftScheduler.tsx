@@ -220,7 +220,6 @@ const ShiftScheduler = () => {
       // Data starts after legend (legend.length rows), header1+header2 (2 rows), then empRows
       const startRow = legend.length + 3; // 1-based index for first employee row
       const empCount = employees.length;
-      const daysInMonth = data[0].length - 4; // number of day columns
       for (let i = 0; i < empCount; i++) {
         const rowIdx = startRow + i;
         for (let d = 0; d < daysInMonth; d++) {
