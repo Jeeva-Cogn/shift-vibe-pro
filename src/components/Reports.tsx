@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, FileSpreadsheet, Calendar, Eye, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
+import { getChennaiTimeString } from '@/lib/utils';
 
 interface ExportRecord {
   id: string;
@@ -18,6 +20,13 @@ interface ExportRecord {
 }
 
 const Reports = () => {
+  const [chennaiTimeNow, setChennaiTimeNow] = React.useState(getChennaiTimeString());
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setChennaiTimeNow(getChennaiTimeString());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
   const [exportHistory, setExportHistory] = useState<ExportRecord[]>([
     {
       id: '1',
@@ -40,8 +49,58 @@ const Reports = () => {
   ]);
 
   const handleDownload = (record: ExportRecord) => {
-    toast.success(`Downloading ${record.filename}`);
-    // Here would be the actual download logic
+    try {
+      // Create sample data for the requested file
+      const sampleData = [
+        ['Employee', 'Date', 'Shift', 'Type', 'Seat'],
+        ['Jeyakaran (Lead)', '1-Jan-2024', 'S1', 'WFO', 'A1'],
+        ['Karthikeyan (Lead)', '1-Jan-2024', 'S2', 'WFO', 'A2'],
+        ['Manoj (Lead)', '1-Jan-2024', 'S3', 'WFH', '-'],
+        ['Sai Krishna', '1-Jan-2024', 'S1', 'WFO', 'B1'],
+        ['Jeeva', '1-Jan-2024', 'S2', 'WFH', '-'],
+        ['Saran', '1-Jan-2024', 'S3', 'WFO', 'B2'],
+        ['Akshay', '2-Jan-2024', 'S1', 'WFO', 'C1'],
+        ['Murugan', '2-Jan-2024', 'S2', 'WFH', '-'],
+        ['Sahana P', '2-Jan-2024', 'S3', 'WFO', 'C2'],
+        ['Rengadurai', '2-Jan-2024', 'OFF', 'OFF', '-']
+      ];
+
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.aoa_to_sheet(sampleData);
+
+      // Set column widths
+      worksheet['!cols'] = [
+        { width: 20 }, // Employee
+        { width: 12 }, // Date
+        { width: 8 },  // Shift
+        { width: 8 },  // Type
+        { width: 8 }   // Seat
+      ];
+
+      // (Removed cell styling for compatibility with open-source xlsx)
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Shift Schedule');
+
+      // Generate Excel file and download
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = record.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the object URL
+      URL.revokeObjectURL(link.href);
+      
+      toast.success(`Downloaded ${record.filename}`);
+    } catch (error) {
+      toast.error('Failed to download file');
+    }
   };
 
   const handleView = (record: ExportRecord) => {
@@ -65,6 +124,10 @@ const Reports = () => {
 
   return (
     <div className="space-y-6">
+      {/* Chennai Time Banner */}
+      <div className="w-full text-center py-2 bg-blue-50 text-blue-700 font-semibold rounded">
+        Current Chennai Time: {chennaiTimeNow}
+      </div>
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="transition-all duration-200 hover:scale-105">
