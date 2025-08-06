@@ -1,4 +1,4 @@
-
+![1754484727456](image/README/1754484727456.png)![1754484729354](image/README/1754484729354.png)![1754484730059](image/README/1754484730059.png)![1754484730241](image/README/1754484730241.png)![1754484735616](image/README/1754484735616.png)
 # Shift Scheduler
 
 A comprehensive web application for managing team shifts, office seating arrangements, and leave management.
