@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { UserCheck, UserX, Calendar, Plus, User, Building2, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { getChennaiTimeString } from '@/lib/utils';
 
 interface TeamMember {
   id: string;
@@ -24,6 +25,13 @@ interface SeatInfo {
 }
 
 const TeamManagement = () => {
+  const [chennaiTimeNow, setChennaiTimeNow] = React.useState(getChennaiTimeString());
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setChennaiTimeNow(getChennaiTimeString());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
   const [teamMembers] = useState<TeamMember[]>([
     // Lead members (must be in all shifts)
     { id: '1', name: 'Jeyakaran', role: 'lead', isActive: true, shifts: ['S1', 'S2', 'S3'] },
@@ -83,6 +91,10 @@ const TeamManagement = () => {
 
   return (
     <div className="space-y-6">
+      {/* Chennai Time Banner */}
+      <div className="w-full text-center py-2 bg-blue-50 text-blue-700 font-semibold rounded">
+        Current Chennai Time: {chennaiTimeNow}
+      </div>
       <Tabs defaultValue="team" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="team" className="flex items-center gap-2">
