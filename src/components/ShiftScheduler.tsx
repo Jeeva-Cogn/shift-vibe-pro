@@ -6,12 +6,22 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Clock, RefreshCw, Download, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import ExcelJS from 'exceljs';
+import { getChennaiTime, getChennaiTimeString } from '@/lib/utils';
 
 const ShiftScheduler = () => {
   const [selectedMonth, setSelectedMonth] = useState('2024-01');
   const [selectedYear, setSelectedYear] = useState('2024');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [chennaiTimeNow, setChennaiTimeNow] = useState(getChennaiTimeString());
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setChennaiTimeNow(getChennaiTimeString());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const months = [
     { value: '01', label: 'January' },
@@ -55,8 +65,9 @@ const ShiftScheduler = () => {
     setIsGenerating(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
+      const chennaiTime = getChennaiTimeString();
       toast.success('Schedule generated successfully!', {
-        description: `Generated for ${months.find(m => m.value === selectedMonth.split('-')[1])?.label} ${selectedYear}`
+        description: `Generated for ${months.find(m => m.value === selectedMonth.split('-')[1])?.label} ${selectedYear} (Chennai time: ${chennaiTime})`
       });
     } catch (error) {
       toast.error('Failed to generate schedule');
@@ -68,26 +79,76 @@ const ShiftScheduler = () => {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      // Simulate export process
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
       const monthName = months.find(m => m.value === selectedMonth.split('-')[1])?.label;
+      const chennaiTime = getChennaiTimeString();
       const filename = `Shift_Schedule_${monthName}_${selectedYear}.xlsx`;
-      
-      // Here would be the actual Excel export logic with colors
-      // For now, we'll simulate the download
+
+      // Sample data
+      const legend = [
+        ['Legend:', 'WFO = Green', 'WFH = Cyan', 'OFF = Grey', 'LEAVE = Light Grey'],
+        [`Exported at: ${chennaiTime} (Chennai time)`]
+      ];
+      const data = [
+        ['Employee', 'Date', 'Shift', 'Type', 'Seat'],
+        ['Jeyakaran (Lead)', '1-Jan-2024', 'S1', 'WFO', 'A1'],
+        ['Karthikeyan (Lead)', '1-Jan-2024', 'S2', 'WFO', 'A2'],
+        ['Manoj (Lead)', '1-Jan-2024', 'S3', 'WFH', '-'],
+        ['Sai Krishna', '1-Jan-2024', 'S1', 'WFO', 'B1'],
+        ['Jeeva', '1-Jan-2024', 'S2', 'WFH', '-'],
+        ['Saran', '1-Jan-2024', 'S3', 'WFO', 'B2'],
+        ['Akshay', '2-Jan-2024', 'S1', 'WFO', 'C1'],
+        ['Murugan', '2-Jan-2024', 'S2', 'WFH', '-'],
+        ['Sahana P', '2-Jan-2024', 'S3', 'WFO', 'C2'],
+        ['Rengadurai', '2-Jan-2024', 'OFF', 'OFF', '-']
+      ];
+
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Shift Schedule');
+
+      // Add legend and data
+      worksheet.addRows(legend);
+      worksheet.addRows(data);
+
+      // Set column widths
+      worksheet.columns = [
+        { width: 20 }, // Employee
+        { width: 12 }, // Date
+        { width: 8 },  // Shift
+        { width: 8 },  // Type
+        { width: 8 }   // Seat
+      ];
+
+      // Color coding for 'Type' column
+      for (let i = legend.length + 2; i < worksheet.rowCount + 1; i++) {
+        const typeCell = worksheet.getCell(`D${i}`);
+        switch (typeCell.value) {
+          case 'WFO':
+            typeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C6F6D5' } };
+            break;
+          case 'WFH':
+            typeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'A7F3D0' } };
+            break;
+          case 'OFF':
+            typeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F3F4F6' } };
+            break;
+          case 'LEAVE':
+            typeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E5E7EB' } };
+            break;
+        }
+      }
+
+      // Generate and download file
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const link = document.createElement('a');
-      link.href = '#';
+      link.href = URL.createObjectURL(blob);
       link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
-      toast.success('Export completed!', {
-        description: `Downloaded: ${filename}`
-      });
-      
-      // This would also save to the reports history
+      URL.revokeObjectURL(link.href);
+      toast.success('Export completed!', { description: `Downloaded: ${filename}` });
     } catch (error) {
       toast.error('Failed to export schedule');
     } finally {
@@ -97,6 +158,10 @@ const ShiftScheduler = () => {
 
   return (
     <div className="space-y-6">
+      {/* Chennai Time Banner */}
+      <div className="w-full text-center py-2 bg-blue-50 text-blue-700 font-semibold rounded">
+        Current Chennai Time: {chennaiTimeNow}
+      </div>
       {/* Controls */}
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
