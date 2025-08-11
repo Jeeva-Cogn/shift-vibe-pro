@@ -1,13 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, FileSpreadsheet, Calendar, Eye, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
 import { getChennaiTimeString } from '@/lib/utils';
+import { ExportRecord, getExportHistory, downloadExportRecord, removeExportRecord } from '@/lib/exportHistory';
 
 interface ExportRecord {
   id: string;
@@ -27,76 +27,18 @@ const Reports = () => {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
-  const [exportHistory, setExportHistory] = useState<ExportRecord[]>([
-    {
-      id: '1',
-      filename: 'Shift_Schedule_January_2024.xlsx',
-      generatedDate: '2024-01-15',
-      generatedTime: '10:30 AM',
-      month: 'January',
-      year: '2024',
-      status: 'completed'
-    },
-    {
-      id: '2', 
-      filename: 'Shift_Schedule_February_2024.xlsx',
-      generatedDate: '2024-02-12',
-      generatedTime: '02:15 PM',
-      month: 'February',
-      year: '2024',
-      status: 'completed'
-    }
-  ]);
+  const [exportHistory, setExportHistory] = useState<ExportRecord[]>([]);
+
+  useEffect(() => {
+    setExportHistory(getExportHistory());
+    const handler = () => setExportHistory(getExportHistory());
+    window.addEventListener('export-history-updated', handler as EventListener);
+    return () => window.removeEventListener('export-history-updated', handler as EventListener);
+  }, []);
 
   const handleDownload = (record: ExportRecord) => {
     try {
-      // Create sample data for the requested file
-      const sampleData = [
-        ['Employee', 'Date', 'Shift', 'Type', 'Seat'],
-        ['Jeyakaran (Lead)', '1-Jan-2024', 'S1', 'WFO', 'A1'],
-        ['Karthikeyan (Lead)', '1-Jan-2024', 'S2', 'WFO', 'A2'],
-        ['Manoj (Lead)', '1-Jan-2024', 'S3', 'WFH', '-'],
-        ['Sai Krishna', '1-Jan-2024', 'S1', 'WFO', 'B1'],
-        ['Jeeva', '1-Jan-2024', 'S2', 'WFH', '-'],
-        ['Saran', '1-Jan-2024', 'S3', 'WFO', 'B2'],
-        ['Akshay', '2-Jan-2024', 'S1', 'WFO', 'C1'],
-        ['Murugan', '2-Jan-2024', 'S2', 'WFH', '-'],
-        ['Sahana P', '2-Jan-2024', 'S3', 'WFO', 'C2'],
-        ['Rengadurai', '2-Jan-2024', 'OFF', 'OFF', '-']
-      ];
-
-      // Create workbook and worksheet
-      const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.aoa_to_sheet(sampleData);
-
-      // Set column widths
-      worksheet['!cols'] = [
-        { width: 20 }, // Employee
-        { width: 12 }, // Date
-        { width: 8 },  // Shift
-        { width: 8 },  // Type
-        { width: 8 }   // Seat
-      ];
-
-      // (Removed cell styling for compatibility with open-source xlsx)
-
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Shift Schedule');
-
-      // Generate Excel file and download
-      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = record.filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Clean up the object URL
-      URL.revokeObjectURL(link.href);
-      
+      downloadExportRecord(record);
       toast.success(`Downloaded ${record.filename}`);
     } catch (error) {
       toast.error('Failed to download file');
@@ -104,12 +46,13 @@ const Reports = () => {
   };
 
   const handleView = (record: ExportRecord) => {
-    toast.info(`Opening ${record.filename} for preview`);
-    // Here would be the view logic
+    toast.info(`Preparing ${record.filename}`);
+    downloadExportRecord(record);
   };
 
   const handleDelete = (recordId: string) => {
-    setExportHistory(prev => prev.filter(record => record.id !== recordId));
+    removeExportRecord(recordId);
+    setExportHistory(getExportHistory());
     toast.success('Export record deleted');
   };
 
@@ -190,8 +133,7 @@ const Reports = () => {
                   <TableRow>
                     <TableHead>Filename</TableHead>
                     <TableHead>Month/Year</TableHead>
-                    <TableHead>Generated Date</TableHead>
-                    <TableHead>Generated Time</TableHead>
+                    <TableHead>Generated</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -201,11 +143,10 @@ const Reports = () => {
                     <TableRow key={record.id} className="transition-colors hover:bg-muted/50">
                       <TableCell className="font-medium">{record.filename}</TableCell>
                       <TableCell>{record.month} {record.year}</TableCell>
-                      <TableCell>{new Date(record.generatedDate).toLocaleDateString()}</TableCell>
-                      <TableCell>{record.generatedTime}</TableCell>
+                      <TableCell>{new Date(record.generatedAt).toLocaleString()}</TableCell>
                       <TableCell>
-                        <Badge className={getStatusColor(record.status)}>
-                          {record.status}
+                        <Badge className={getStatusColor('completed')}>
+                          completed
                         </Badge>
                       </TableCell>
                       <TableCell>

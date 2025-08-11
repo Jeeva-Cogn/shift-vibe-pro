@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { FileDown } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { addExportRecord } from '@/lib/exportHistory';
 
 interface Member {
   id: string;
@@ -67,161 +68,135 @@ function checkSchedulingRules(schedule: any, member: string, date: Date): {
   };
 }
 
-// Function to export roster to Excel
-function exportToExcel(schedule: Record<string, Record<string, string[]>>, year: number, month: number): void {
-  const monthLabel = new Date(year, month).toLocaleString('default', { month: 'short' });
+// Function to export roster to Excel (ExcelJS with colors) and store in Reports
+async function exportToExcel(schedule: Record<string, Record<string, string[]>>, year: number, month: number): Promise<void> {
+  const monthLabel = new Date(year, month).toLocaleString('default', { month: 'long' });
   const dates = Object.keys(schedule);
-  const workbook = XLSX.utils.book_new();
-  
-  // Prepare worksheet data
-  const worksheetData: any[][] = [
-    ['Date/Month/Year', '', '', '', '', ...dates],
-    ['CTS', 'ESHC', 'Name', '', '', ...dates.map(date => 
-      new Date(date).toLocaleDateString('en-US', { weekday: 'long' })
-    )]
-  ];
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Shift Roster');
 
-  // Add member rows
+  // Header rows
+  const headerRow1 = ['CTS', 'ESHC', 'Name', '', '', ...dates];
+  const headerRow2 = ['', '', '', '', '', ...dates.map(d => new Date(d).toLocaleDateString('en-US', { weekday: 'long' }))];
+  worksheet.addRow(headerRow1);
+  worksheet.addRow(headerRow2);
+
+  // Column widths
+  const widths = [15, 10, 20, 10, 10, ...Array(31).fill(12)];
+  widths.forEach((w, i) => (worksheet.getColumn(i + 1).width = w));
+
+  // Members
   const members = [
     { id: '593300', eshc: 'EH0647', name: 'Dinesh' },
     { id: '560008', eshc: 'EG4208', name: 'Mano' },
     ...shiftLeads.map(name => ({ id: '', eshc: '', name })),
-    ...associates.map(name => ({ id: '', eshc: '', name }))
+    ...associates.map(name => ({ id: '', eshc: '', name })),
   ];
 
-  members.forEach(member => {
-    const row = [member.id, member.eshc, member.name, '', ''];
-    dates.forEach(date => {
+  // Colors (ARGB)
+  const fillForValue = (val: string | undefined) => {
+    switch (val) {
+      case 'S1': return { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB8E3E9' } }; // light blue
+      case 'S2': return { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE699' } }; // light yellow
+      case 'S3': return { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC5E0B3' } }; // light green
+      case 'S4': return { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4B183' } }; // orange
+      case 'OFF': return { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }; // grey
+      case 'LEAVE': return { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } }; // light grey
+      default: return undefined;
+    }
+  };
+
+  // Fill member rows
+  for (const member of members) {
+    const rowValues: any[] = [member.id, member.eshc, member.name, '', ''];
+    const row = worksheet.addRow(rowValues);
+    // Later we'll fill date cells
+    for (let i = 0; i < dates.length; i++) {
+      const date = dates[i];
       const daySchedule = schedule[date];
       let memberShift = 'OFF';
-      Object.entries(daySchedule).forEach(([shiftKey, shiftMembers]) => {
+      for (const [shiftKey, shiftMembers] of Object.entries(daySchedule)) {
         if (shiftMembers && shiftMembers.includes(member.name)) {
           memberShift = shiftKey;
+          break;
         }
-      });
-      row.push(memberShift);
-    });
-    worksheetData.push(row);
-  });
+      }
+      const cell = row.getCell(6 + i); // first 5 columns reserved
+      cell.value = memberShift;
+      const fill = fillForValue(memberShift);
+      if (fill) cell.fill = fill as any;
+      cell.alignment = { horizontal: 'center' };
+      cell.border = { top: { style: 'thin', color: { argb: 'FFEEEEEE' } }, left: { style: 'thin', color: { argb: 'FFEEEEEE' } }, bottom: { style: 'thin', color: { argb: 'FFEEEEEE' } }, right: { style: 'thin', color: { argb: 'FFEEEEEE' } } };
+    }
+  }
 
-  // Calculate and add shift counts
-  worksheetData.push([]);
-  const counts = { S1: [], S2: [], S3: [] };
-  dates.forEach(date => {
-    const daySchedule = schedule[date];
-    Object.entries(counts).forEach(([shift]) => {
-      counts[shift].push(daySchedule[shift]?.length || 0);
-    });
-  });
+  // Empty row
+  worksheet.addRow([]);
 
-  Object.entries(counts).forEach(([shift, values]) => {
-    worksheetData.push(['', '', '', '', shift, ...values]);
-  });
+  // Shift counts per day
+  const countsRowStart = worksheet.rowCount + 1;
+  const shiftsList: Array<'S1'|'S2'|'S3'> = ['S1','S2','S3'];
+  for (const s of shiftsList) {
+    const row = worksheet.addRow(['', '', '', '', s, ...dates.map(date => schedule[date][s]?.length || 0)]);
+    // Style shift label cell
+    const labelCell = row.getCell(5);
+    const fill = fillForValue(s);
+    if (fill) labelCell.fill = fill as any;
+    labelCell.font = { bold: true };
+  }
 
-  // Add empty rows and shift timings
-  worksheetData.push([]);
-  worksheetData.push([]);
-
-  [
+  // Legend and timings
+  worksheet.addRow([]);
+  worksheet.addRow([]);
+  const timings = [
     ['S1', '06:00 AM TO 04:00 PM IST'],
     ['S2', '01:00 PM TO 11:00 PM IST'],
     ['S3', '10:00 PM TO 08:00 AM IST'],
     ['S4', '12:30 PM TO 10:30 PM IST'],
     ['G', '09:00 AM TO 07:00 PM IST'],
     ['P', '06:30 PM TO 04:30 AM IST'],
-    ['HIH', '11:30 AM TO 08:30 PM IST']
-  ].forEach(row => worksheetData.push(row));
-
-  // Add leads section
-  worksheetData.push([]);
-  worksheetData.push(['LeadS']);
-  worksheetData.push(['593300', 'EH0647', 'Dinesh Anbalagan']);
-  worksheetData.push(['560008', 'EG4208', 'Mano']);
-  worksheetData.push(['Shift Leads']);
-  shiftLeads.forEach(name => {
-    worksheetData.push(['', '', name]);
-  });
-
-  // Create worksheet and set column widths
-  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-  worksheet['!cols'] = [
-    { width: 15 }, // CTS
-    { width: 10 }, // ESHC
-    { width: 20 }, // Name
-    { width: 10 }, // Empty
-    { width: 10 }, // Empty
-    ...Array(31).fill({ width: 12 }) // Dates
+    ['HIH', '11:30 AM TO 08:30 PM IST'],
   ];
-
-  // Add cell styles
-  const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
-  for (let row = range.s.r; row <= range.e.r; row++) {
-    for (let col = range.s.c; col <= range.e.c; col++) {
-      const cellAddress = { c: col, r: row };
-      const cellRef = XLSX.utils.encode_cell(cellAddress);
-      const cell = worksheet[cellRef];
-      
-      if (cell && typeof cell.v === 'string') {
-        // Add background colors based on shift
-        let cellStyle;
-        switch (cell.v) {
-          case 'S1':
-            cellStyle = { 
-              fill: { 
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { rgb: 'B8E3E9FF' } // Light blue
-              } 
-            };
-            break;
-          case 'S2':
-            cellStyle = { 
-              fill: { 
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { rgb: 'FFE699FF' } // Light yellow
-              } 
-            };
-            break;
-          case 'S3':
-            cellStyle = { 
-              fill: { 
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { rgb: 'C5E0B3FF' } // Light green
-              } 
-            };
-            break;
-          case 'S4':
-            cellStyle = { 
-              fill: { 
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { rgb: 'F4B183FF' } // Orange
-              } 
-            };
-            break;
-          case 'OFF':
-            cellStyle = { 
-              fill: { 
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { rgb: 'FF9999FF' } // Light red
-              } 
-            };
-            break;
-        }
-        if (cellStyle) {
-          cell.s = cellStyle;
-        }
-      }
-    }
+  for (const [code, text] of timings) {
+    const r = worksheet.addRow([code, text]);
+    const cell = r.getCell(1);
+    const fill = fillForValue(code);
+    if (fill) cell.fill = fill as any;
+    cell.font = { bold: true };
   }
 
-  // Add worksheet to workbook and save
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Shift Roster');
-  XLSX.writeFile(workbook, `ShiftRoster_${monthLabel}${year}.xlsx`);
+  // Leads section
+  worksheet.addRow([]);
+  worksheet.addRow(['Leads']);
+  worksheet.addRow(['593300', 'EH0647', 'Dinesh Anbalagan']);
+  worksheet.addRow(['560008', 'EG4208', 'Mano']);
+  worksheet.addRow(['Shift Leads']);
+  for (const name of shiftLeads) worksheet.addRow(['', '', name]);
+
+  // Borders for header rows
+  [1,2].forEach(rn => {
+    const r = worksheet.getRow(rn);
+    r.eachCell(c => { c.font = { bold: rn === 1 }; c.alignment = { horizontal: 'center' }; });
+  });
+
+  // Write and download
+  const buffer = await workbook.xlsx.writeBuffer();
+  const filename = `ShiftRoster_${monthLabel}${year}.xlsx`;
+
+  // Save to export history
+  addExportRecord(filename, monthLabel, String(year), buffer);
+
+  // Download
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
 }
+
 
 // Team members and shift leads
 const shiftLeads = [
