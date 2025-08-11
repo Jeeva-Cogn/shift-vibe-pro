@@ -87,9 +87,110 @@
   }
 }
 
+:root {
+  /* Status tokens */
+  --status-wfo-bg: 146 64% 90%;
+  --status-wfo-fg: 146 43% 22%;
+  --status-wfo-border: 146 45% 70%;
+  
+  --status-wfh-bg: 188 79% 90%;
+  --status-wfh-fg: 188 62% 26%;
+  --status-wfh-border: 188 60% 70%;
+
+  --status-off-bg: 0 0% 95%;
+  --status-off-fg: 0 0% 30%;
+  --status-off-border: 0 0% 85%;
+
+  --status-leave-bg: 0 0% 97%;
+  --status-leave-fg: 0 0% 45%;
+  --status-leave-border: 0 0% 90%;
+
+  /* Shift tokens */
+  --shift-s1-bg: 197 71% 92%;
+  --shift-s1-fg: 197 85% 27%;
+  --shift-s1-border: 197 75% 80%;
+
+  --shift-s2-bg: 49 100% 90%;
+  --shift-s2-fg: 40 100% 30%;
+  --shift-s2-border: 49 90% 75%;
+
+  --shift-s3-bg: 96 45% 90%;
+  --shift-s3-fg: 96 40% 25%;
+  --shift-s3-border: 96 40% 75%;
+}
+
+.dark {
+  /* Status tokens - dark mode */
+  --status-wfo-bg: 146 40% 18%;
+  --status-wfo-fg: 146 60% 85%;
+  --status-wfo-border: 146 45% 35%;
+
+  --status-wfh-bg: 188 40% 18%;
+  --status-wfh-fg: 188 60% 85%;
+  --status-wfh-border: 188 45% 35%;
+
+  --status-off-bg: 0 0% 18%;
+  --status-off-fg: 0 0% 80%;
+  --status-off-border: 0 0% 30%;
+
+  --status-leave-bg: 0 0% 14%;
+  --status-leave-fg: 0 0% 75%;
+  --status-leave-border: 0 0% 28%;
+
+  /* Shift tokens - dark mode */
+  --shift-s1-bg: 197 40% 18%;
+  --shift-s1-fg: 197 70% 85%;
+  --shift-s1-border: 197 45% 35%;
+
+  --shift-s2-bg: 49 40% 18%;
+  --shift-s2-fg: 40 70% 85%;
+  --shift-s2-border: 49 45% 35%;
+
+  --shift-s3-bg: 96 35% 18%;
+  --shift-s3-fg: 96 60% 85%;
+  --shift-s3-border: 96 40% 35%;
+}
+
 @layer components {
-  .animate-fade-in {
-    animation: fadeIn 0.3s ease-out;
+  .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+
+  /* Status badge classes using semantic tokens */
+  .badge-status-wfo { 
+    background-color: hsl(var(--status-wfo-bg)); 
+    color: hsl(var(--status-wfo-fg)); 
+    border: 1px solid hsl(var(--status-wfo-border));
+  }
+  .badge-status-wfh { 
+    background-color: hsl(var(--status-wfh-bg)); 
+    color: hsl(var(--status-wfh-fg)); 
+    border: 1px solid hsl(var(--status-wfh-border));
+  }
+  .badge-status-off { 
+    background-color: hsl(var(--status-off-bg)); 
+    color: hsl(var(--status-off-fg)); 
+    border: 1px solid hsl(var(--status-off-border));
+  }
+  .badge-status-leave { 
+    background-color: hsl(var(--status-leave-bg)); 
+    color: hsl(var(--status-leave-fg)); 
+    border: 1px solid hsl(var(--status-leave-border));
+  }
+
+  /* Shift badge classes */
+  .badge-shift-s1 { 
+    background-color: hsl(var(--shift-s1-bg));
+    color: hsl(var(--shift-s1-fg));
+    border: 1px solid hsl(var(--shift-s1-border));
+  }
+  .badge-shift-s2 { 
+    background-color: hsl(var(--shift-s2-bg));
+    color: hsl(var(--shift-s2-fg));
+    border: 1px solid hsl(var(--shift-s2-border));
+  }
+  .badge-shift-s3 { 
+    background-color: hsl(var(--shift-s3-bg));
+    color: hsl(var(--shift-s3-fg));
+    border: 1px solid hsl(var(--shift-s3-border));
   }
 }
 

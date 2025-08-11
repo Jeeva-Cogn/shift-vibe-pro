@@ -213,20 +213,20 @@ const ShiftCalendar = () => {
 
   const getShiftColor = (shift: string) => {
     switch (shift) {
-      case 'S1': return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'S2': return 'bg-green-100 text-green-800 border-green-300';
-      case 'S3': return 'bg-purple-100 text-purple-800 border-purple-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'S1': return 'badge-shift-s1';
+      case 'S2': return 'badge-shift-s2';
+      case 'S3': return 'badge-shift-s3';
+      default: return 'badge-status-off';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'WFO': return 'bg-green-100 text-green-800 border-green-300';
-      case 'WFH': return 'bg-cyan-100 text-cyan-800 border-cyan-300';
-      case 'OFF': return 'bg-gray-100 text-gray-800 border-gray-300';
-      case 'LEAVE': return 'bg-gray-50 text-gray-600 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'WFO': return 'badge-status-wfo';
+      case 'WFH': return 'badge-status-wfh';
+      case 'OFF': return 'badge-status-off';
+      case 'LEAVE': return 'badge-status-leave';
+      default: return 'badge-status-off';
     }
   };
 
@@ -504,15 +504,15 @@ const ShiftCalendar = () => {
               <h4 className="font-medium text-sm">Shifts</h4>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-blue-100 text-blue-800 border-blue-300">S1</Badge>
+                  <Badge className="badge-shift-s1">S1</Badge>
                   <span className="text-xs">Morning</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-green-100 text-green-800 border-green-300">S2</Badge>
+                  <Badge className="badge-shift-s2">S2</Badge>
                   <span className="text-xs">Afternoon</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-purple-100 text-purple-800 border-purple-300">S3</Badge>
+                  <Badge className="badge-shift-s3">S3</Badge>
                   <span className="text-xs">Evening</span>
                 </div>
               </div>
@@ -522,11 +522,11 @@ const ShiftCalendar = () => {
               <h4 className="font-medium text-sm">Work Status</h4>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-green-100 text-green-800 border-green-300">WFO</Badge>
+                  <Badge className="badge-status-wfo">WFO</Badge>
                   <span className="text-xs">Work From Office</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-cyan-100 text-cyan-800 border-cyan-300">WFH</Badge>
+                  <Badge className="badge-status-wfh">WFH</Badge>
                   <span className="text-xs">Work From Home</span>
                 </div>
               </div>
@@ -536,11 +536,11 @@ const ShiftCalendar = () => {
               <h4 className="font-medium text-sm">Time Off</h4>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-gray-100 text-gray-800 border-gray-300">OFF</Badge>
+                  <Badge className="badge-status-off">OFF</Badge>
                   <span className="text-xs">Week Off</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-gray-50 text-gray-600 border-gray-200">LEAVE</Badge>
+                  <Badge className="badge-status-leave">LEAVE</Badge>
                   <span className="text-xs">Approved Leave</span>
                 </div>
               </div>

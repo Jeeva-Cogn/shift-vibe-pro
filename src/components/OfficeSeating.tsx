@@ -42,15 +42,28 @@ const OfficeSeating = () => {
   const getStatusBadge = (type: 'wfo' | 'wfh' | 'off' | 'leave') => {
     switch (type) {
       case 'wfo':
-        return <Badge className="bg-green-100 text-green-800 border-green-300">WFO</Badge>;
+        return <Badge className="badge-status-wfo">WFO</Badge>;
       case 'wfh':
-        return <Badge className="bg-cyan-100 text-cyan-800 border-cyan-300">WFH</Badge>;
+        return <Badge className="badge-status-wfh">WFH</Badge>;
       case 'off':
-        return <Badge className="bg-gray-100 text-gray-800 border-gray-300">OFF</Badge>;
+        return <Badge className="badge-status-off">OFF</Badge>;
       case 'leave':
-        return <Badge className="bg-gray-50 text-gray-600 border-gray-200">LEAVE</Badge>;
+        return <Badge className="badge-status-leave">LEAVE</Badge>;
       default:
         return <span className="text-gray-400">-</span>;
+    }
+  };
+
+  const getShiftClass = (shift?: string | null) => {
+    switch (shift) {
+      case 'S1':
+        return 'badge-shift-s1';
+      case 'S2':
+        return 'badge-shift-s2';
+      case 'S3':
+        return 'badge-shift-s3';
+      default:
+        return '';
     }
   };
 
@@ -86,7 +99,7 @@ const OfficeSeating = () => {
                 {seat.isOccupied && (
                   <>
                     <span className="text-xs truncate mt-1">{seat.occupant}</span>
-                    <Badge variant="outline" className="text-xs mt-1">{seat.shift}</Badge>
+                    <Badge variant="outline" className={`text-xs mt-1 ${getShiftClass(seat.shift)}`}>{seat.shift}</Badge>
                   </>
                 )}
               </div>

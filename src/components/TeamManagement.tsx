@@ -283,10 +283,10 @@ const TeamManagement = () => {
                 <div className="space-y-2">
                   <h4 className="font-medium text-green-600">Color Coding</h4>
                   <ul className="space-y-1 text-gray-600">
-                    <li>• <span className="inline-block w-3 h-3 bg-gray-400 rounded mr-2"></span>OFF - Grey</li>
-                    <li>• <span className="inline-block w-3 h-3 bg-gray-300 rounded mr-2"></span>LEAVE - Light Grey</li>
-                    <li>• <span className="inline-block w-3 h-3 bg-green-500 rounded mr-2"></span>WFO - Green</li>
-                    <li>• <span className="inline-block w-3 h-3 bg-cyan-500 rounded mr-2"></span>WFH - Cyan</li>
+                    <li>• <Badge className="badge-status-off">OFF</Badge> - Grey</li>
+                    <li>• <Badge className="badge-status-leave">LEAVE</Badge> - Light Grey</li>
+                    <li>• <Badge className="badge-status-wfo">WFO</Badge> - Green</li>
+                    <li>• <Badge className="badge-status-wfh">WFH</Badge> - Cyan</li>
                   </ul>
                 </div>
               </div>
