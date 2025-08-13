@@ -106,21 +106,42 @@ async function exportToExcel(schedule: Record<string, Record<string, string[]>>,
     }
   };
 
+  // Get leave data for Excel export
+  const leaveRequests = getLeaveRequests();
+  const isOnLeaveForExcel = (member: string, dateStr: string) => {
+    // Convert date string format for comparison
+    const excelDate = new Date(dateStr);
+    const dateForLeave = `${excelDate.getFullYear()}-${String(excelDate.getMonth() + 1).padStart(2, '0')}-${String(excelDate.getDate()).padStart(2, '0')}`;
+    return leaveRequests.some(req => 
+      req.member === member && 
+      req.date === dateForLeave && 
+      req.status === 'approved'
+    );
+  };
+
   // Fill member rows
   for (const member of members) {
     const rowValues: any[] = [member.id, member.eshc, member.name, '', ''];
     const row = worksheet.addRow(rowValues);
-    // Later we'll fill date cells
+    // Fill date cells with shift assignments or leave status
     for (let i = 0; i < dates.length; i++) {
       const date = dates[i];
       const daySchedule = schedule[date];
       let memberShift = 'OFF';
-      for (const [shiftKey, shiftMembers] of Object.entries(daySchedule)) {
-        if (shiftMembers && shiftMembers.includes(member.name)) {
-          memberShift = shiftKey;
-          break;
+      
+      // Check if member is on leave first
+      if (isOnLeaveForExcel(member.name, date)) {
+        memberShift = 'LEAVE';
+      } else {
+        // Check shift assignments
+        for (const [shiftKey, shiftMembers] of Object.entries(daySchedule)) {
+          if (shiftMembers && shiftMembers.includes(member.name)) {
+            memberShift = shiftKey;
+            break;
+          }
         }
       }
+      
       const cell = row.getCell(6 + i); // first 5 columns reserved
       cell.value = memberShift;
       const fill = fillForValue(memberShift);
@@ -249,6 +270,35 @@ function getDaysInMonth(year: number, month: number) {
   return days;
 }
 
+// Get leave data from localStorage
+function getLeaveRequests(): { member: string; date: string; status: string }[] {
+  try {
+    const saved = localStorage.getItem('leaveRequests');
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Monthly shift rotation - all members except Dinesh and Mano get rotated shifts
+function getMonthlyShiftRotation(year: number, month: number) {
+  const baseRotation = {
+    'Jeyakaran': (month % 3) === 0 ? 'S1' : (month % 3) === 1 ? 'S2' : 'S3',
+    'Karthikeyan': (month % 3) === 1 ? 'S1' : (month % 3) === 2 ? 'S2' : 'S3',
+    'Manoj': (month % 3) === 2 ? 'S1' : (month % 3) === 0 ? 'S2' : 'S3',
+    'Panner': (month % 3) === 0 ? 'S2' : (month % 3) === 1 ? 'S3' : 'S1',
+    'SaiKumar': (month % 3) === 1 ? 'S2' : (month % 3) === 2 ? 'S3' : 'S1',
+    'Sai Krishna': (month % 3) === 2 ? 'S2' : (month % 3) === 0 ? 'S3' : 'S1',
+    'Jeeva': (month % 3) === 0 ? 'S3' : (month % 3) === 1 ? 'S1' : 'S2',
+    'Saran': (month % 3) === 1 ? 'S3' : (month % 3) === 2 ? 'S1' : 'S2',
+    'Akshay': (month % 3) === 2 ? 'S3' : (month % 3) === 0 ? 'S1' : 'S2',
+    'Murugan': (month % 3) === 0 ? 'S1' : (month % 3) === 1 ? 'S3' : 'S2',
+    'Sahana P': (month % 3) === 1 ? 'S1' : (month % 3) === 2 ? 'S3' : 'S2',
+    'Rengadurai': (month % 3) === 2 ? 'S1' : (month % 3) === 0 ? 'S3' : 'S2',
+  };
+  return baseRotation;
+}
+
 // Dynamic schedule generator for any month/year
 function generateSchedule(year: number, month: number) {
   const days = getDaysInMonth(year, month);
@@ -256,7 +306,18 @@ function generateSchedule(year: number, month: number) {
   const memberShiftHistory = new Map(); // Track last shift and consecutive days
   const weekendCount = new Map(); // Track weekend shifts per member
   const weeklyWFO = new Map(); // Track WFO days per week per member
-  const currentWeekWFO = new Map(); // Track current week's WFO count
+  const leaveRequests = getLeaveRequests(); // Get leave data
+  const monthlyRotation = getMonthlyShiftRotation(year, month); // Get monthly shift rotation
+
+  // Helper to check if member is on leave
+  const isOnLeave = (member: string, date: Date) => {
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    return leaveRequests.some(req => 
+      req.member === member && 
+      req.date === dateStr && 
+      req.status === 'approved'
+    );
+  };
 
   // Initialize tracking maps
   [...shiftLeads, ...associates].forEach(member => {
@@ -289,25 +350,30 @@ function generateSchedule(year: number, month: number) {
       let members = [];
       const isWeekend = day === 'Saturday' || day === 'Sunday';
       
-      // First, handle S2 special members (Dinesh and Mano)
+      // First, handle S2 special members (Dinesh and Mano) - no rotation for them
       if (shift.key === 'S2') {
-        // Add one S2-only member if not on leave
+        // Add one S2-only member if not on leave and available
         const availableS2Only = s2OnlyMembers.filter(member => {
           const history = memberShiftHistory.get(member.name);
-          return !history || !history.needsWeekOff;
+          return !isOnLeave(member.name, date) && (!history || !history.needsWeekOff);
         });
         if (availableS2Only.length > 0) {
           members.push(availableS2Only[0].name);
         }
       }
 
-      // Get available shift leads
+      // Get available shift leads - prioritize based on monthly rotation and availability
       const availableLeads = shiftLeads.filter(lead => {
         const history = memberShiftHistory.get(lead);
         const lastShiftDate = history.lastWorkDay ? new Date(history.lastWorkDay) : null;
         const daysSinceLastShift = lastShiftDate ? 
           Math.floor((date.getTime() - lastShiftDate.getTime()) / (24 * 60 * 60 * 1000)) : 999;
         const weeklyWfoInfo = weeklyWFO.get(lead);
+        
+        // Check if on leave
+        if (isOnLeave(lead, date)) {
+          return false;
+        }
         
         // Check if member needs a week off
         if (history.consecutiveDays >= 6) {
@@ -335,9 +401,10 @@ function generateSchedule(year: number, month: number) {
         );
       });
 
-      // Select lead with least weekend shifts if weekend
+      // Select lead prioritizing monthly rotation preference, then least weekend shifts
       const lead = isWeekend ?
         availableLeads.sort((a, b) => weekendCount.get(a) - weekendCount.get(b))[0] :
+        availableLeads.find(l => monthlyRotation[l] === shift.key) || 
         availableLeads[(idx + date.getDate()) % availableLeads.length];
 
       if (lead) {
@@ -356,13 +423,18 @@ function generateSchedule(year: number, month: number) {
       const currentShiftTotal = schedule[label][shift.key]?.length || 0;
       const officeQuota = Math.min(2, Math.ceil(currentShiftTotal * 0.5)); // At least 50% in office
 
-      // Add available associates
+      // Add available associates - prioritize based on monthly rotation and availability
       const availableAssociates = associates.filter(associate => {
         const history = memberShiftHistory.get(associate);
         const lastShiftDate = history.lastWorkDay ? new Date(history.lastWorkDay) : null;
         const daysSinceLastShift = lastShiftDate ?
           Math.floor((date.getTime() - lastShiftDate.getTime()) / (24 * 60 * 60 * 1000)) : 999;
         const weeklyWfoInfo = weeklyWFO.get(associate);
+
+        // Check if on leave
+        if (isOnLeave(associate, date)) {
+          return false;
+        }
 
         // Check if member needs a week off
         if (history.consecutiveDays >= 6) {
@@ -395,11 +467,16 @@ function generateSchedule(year: number, month: number) {
       let wfoCount = members.filter(m => weeklyWFO.get(m)?.wfoDays.has(label)).length;
 
       while (members.length < needed && availableAssociates.length > 0) {
-        // Sort associates by WFO priority (need to meet 3-day quota)
+        // Sort associates by monthly rotation preference, then WFO priority
         const sortedAssociates = [...availableAssociates].sort((a, b) => {
+          // First priority: monthly rotation preference
+          const aPreferred = monthlyRotation[a] === shift.key ? 1 : 0;
+          const bPreferred = monthlyRotation[b] === shift.key ? 1 : 0;
+          if (aPreferred !== bPreferred) return bPreferred - aPreferred;
+          
+          // Second priority: WFO quota needs
           const aWfo = weeklyWFO.get(a);
           const bWfo = weeklyWFO.get(b);
-          // Prioritize those who need more WFO days
           return (aWfo?.wfoCount || 0) - (bWfo?.wfoCount || 0);
         });
 

@@ -27,15 +27,35 @@ const ShiftCalendar = () => {
   }, []);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([
-    { member: 'Sai Krishna', date: '2025-01-05', status: 'approved' },
-    { member: 'Jeeva', date: '2025-01-12', status: 'approved' },
-    { member: 'Saran', date: '2025-01-12', status: 'approved' },
-    { member: 'Manoj', date: '2025-01-18', status: 'approved' },
-  ]);
+  // Load leave requests from localStorage
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(() => {
+    try {
+      const saved = localStorage.getItem('leaveRequests');
+      return saved ? JSON.parse(saved) : [
+        { member: 'Sai Krishna', date: '2025-01-05', status: 'approved' },
+        { member: 'Jeeva', date: '2025-01-12', status: 'approved' },
+        { member: 'Saran', date: '2025-01-12', status: 'approved' },
+        { member: 'Manoj', date: '2025-01-18', status: 'approved' },
+      ];
+    } catch {
+      return [
+        { member: 'Sai Krishna', date: '2025-01-05', status: 'approved' },
+        { member: 'Jeeva', date: '2025-01-12', status: 'approved' },
+        { member: 'Saran', date: '2025-01-12', status: 'approved' },
+        { member: 'Manoj', date: '2025-01-18', status: 'approved' },
+      ];
+    }
+  });
   const [selectedMemberForLeave, setSelectedMemberForLeave] = useState<string>('');
   const [selectedLeaveDate, setSelectedLeaveDate] = useState<Date>();
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+
+  // Save initial leave requests to localStorage
+  React.useEffect(() => {
+    if (!localStorage.getItem('leaveRequests')) {
+      localStorage.setItem('leaveRequests', JSON.stringify(leaveRequests));
+    }
+  }, []);
 
   const teamMembers = [
     'Jeyakaran', 'Karthikeyan', 'Manoj', 'Panner', 'SaiKumar', 
@@ -100,15 +120,19 @@ const ShiftCalendar = () => {
         req.member === selectedMemberForLeave && req.date === dateStr
       );
       
+      let updatedRequests;
       if (existingIndex >= 0) {
         // Update existing request
-        const updated = [...leaveRequests];
-        updated[existingIndex] = newRequest;
-        setLeaveRequests(updated);
+        updatedRequests = [...leaveRequests];
+        updatedRequests[existingIndex] = newRequest;
       } else {
         // Add new request
-        setLeaveRequests([...leaveRequests, newRequest]);
+        updatedRequests = [...leaveRequests, newRequest];
       }
+      
+      setLeaveRequests(updatedRequests);
+      // Save to localStorage for ShiftRoster access
+      localStorage.setItem('leaveRequests', JSON.stringify(updatedRequests));
       
       setSelectedMemberForLeave('');
       setSelectedLeaveDate(undefined);
@@ -117,9 +141,12 @@ const ShiftCalendar = () => {
   };
 
   const removeLeaveRequest = (member: string, date: string) => {
-    setLeaveRequests(leaveRequests.filter(req => 
+    const updatedRequests = leaveRequests.filter(req => 
       !(req.member === member && req.date === date)
-    ));
+    );
+    setLeaveRequests(updatedRequests);
+    // Save to localStorage for ShiftRoster access
+    localStorage.setItem('leaveRequests', JSON.stringify(updatedRequests));
   };
 
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
