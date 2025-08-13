@@ -1,5 +1,6 @@
-![1754484727456](image/README/1754484727456.png)![1754484729354](image/README/1754484729354.png)![1754484730059](image/README/1754484730059.png)![1754484730241](image/README/1754484730241.png)![1754484735616](image/README/1754484735616.png)
 # Shift Scheduler
+
+Prototyoe - https://shiftbot.netlify.app/
 
 A comprehensive web application for managing team shifts, office seating arrangements, and leave management.
 
@@ -46,25 +47,6 @@ A comprehensive web application for managing team shifts, office seating arrange
 - **Icons**: Lucide React
 - **Notifications**: Sonner
 
-## Installation
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd shift-scheduler
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Start the development server:
-```bash
-npm run dev
-```
-
-4. Open your browser and navigate to `http://localhost:8080`
 
 ## Usage
 
@@ -157,6 +139,3 @@ The application includes a subtle "Jeeva's Vibe" watermark that doesn't interfer
 
 This project is proprietary software developed for internal team management.
 
----
-
-*Built with ❤️ for efficient team management*
