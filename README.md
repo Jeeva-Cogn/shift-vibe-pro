@@ -1,6 +1,6 @@
 # Shift Scheduler
 
-Prototyoe - https://shiftbot.netlify.app/
+Prototype - https://shiftbot.netlify.app/
 
 A comprehensive web application for managing team shifts, office seating arrangements, and leave management.
 
