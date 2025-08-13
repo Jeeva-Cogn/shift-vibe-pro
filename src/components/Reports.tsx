@@ -9,16 +9,6 @@ import { toast } from 'sonner';
 import { getChennaiTimeString } from '@/lib/utils';
 import { ExportRecord, getExportHistory, downloadExportRecord, removeExportRecord } from '@/lib/exportHistory';
 
-interface ExportRecord {
-  id: string;
-  filename: string;
-  generatedDate: string;
-  generatedTime: string;
-  month: string;
-  year: string;
-  status: 'completed' | 'pending' | 'failed';
-}
-
 const Reports = () => {
   const [chennaiTimeNow, setChennaiTimeNow] = React.useState(getChennaiTimeString());
   React.useEffect(() => {
@@ -95,7 +85,7 @@ const Reports = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {exportHistory.filter(r => new Date(r.generatedDate).getMonth() === new Date().getMonth()).length}
+              {exportHistory.filter(r => new Date(r.generatedAt).getMonth() === new Date().getMonth()).length}
             </div>
             <p className="text-sm text-gray-600">Reports generated</p>
           </CardContent>
@@ -110,7 +100,7 @@ const Reports = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
-              {Math.round((exportHistory.filter(r => r.status === 'completed').length / exportHistory.length) * 100)}%
+              {exportHistory.length > 0 ? 100 : 0}%
             </div>
             <p className="text-sm text-gray-600">Successful exports</p>
           </CardContent>
@@ -143,7 +133,7 @@ const Reports = () => {
                     <TableRow key={record.id} className="transition-colors hover:bg-muted/50">
                       <TableCell className="font-medium">{record.filename}</TableCell>
                       <TableCell>{record.month} {record.year}</TableCell>
-                      <TableCell>{new Date(record.generatedAt).toLocaleString()}</TableCell>
+                        <TableCell>{new Date(record.generatedAt).toLocaleString()}</TableCell>
                       <TableCell>
                         <Badge className={getStatusColor('completed')}>
                           completed
