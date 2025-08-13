@@ -57,10 +57,6 @@ const Reports = () => {
 
   return (
     <div className="space-y-6">
-      {/* Chennai Time Banner */}
-      <div className="w-full text-center py-2 bg-blue-50 text-blue-700 font-semibold rounded">
-        Current Chennai Time: {chennaiTimeNow}
-      </div>
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="transition-all duration-200 hover:scale-105">
@@ -181,6 +177,11 @@ const Reports = () => {
           )}
         </CardContent>
       </Card>
+      
+      {/* Chennai Time Banner */}
+      <div className="w-full text-center py-2 bg-blue-50 text-blue-700 font-semibold rounded">
+        Current Chennai Time: {chennaiTimeNow}
+      </div>
     </div>
   );
 };

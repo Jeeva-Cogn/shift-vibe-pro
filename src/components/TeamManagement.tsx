@@ -91,10 +91,6 @@ const TeamManagement = () => {
 
   return (
     <div className="space-y-6">
-      {/* Chennai Time Banner */}
-      <div className="w-full text-center py-2 bg-blue-50 text-blue-700 font-semibold rounded">
-        Current Chennai Time: {chennaiTimeNow}
-      </div>
       <Tabs defaultValue="team" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="team" className="flex items-center gap-2">
@@ -294,6 +290,11 @@ const TeamManagement = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Chennai Time Banner */}
+      <div className="w-full text-center py-2 bg-blue-50 text-blue-700 font-semibold rounded">
+        Current Chennai Time: {chennaiTimeNow}
+      </div>
     </div>
   );
 };
