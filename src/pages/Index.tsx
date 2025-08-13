@@ -28,9 +28,11 @@ const Index = () => {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-3">
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-2 rounded-lg">
-                <div className="h-6 w-6 text-white font-bold flex items-center justify-center">
-                  SS
-                </div>
+                <img 
+                  src="/src/assets/shift-scheduler-icon.png" 
+                  alt="Shift Scheduler" 
+                  className="h-6 w-6 filter brightness-0 invert"
+                />
               </div>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">Shift Scheduler</h1>
